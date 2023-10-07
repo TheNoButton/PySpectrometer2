@@ -177,14 +177,15 @@ class App:
                             message_height=self.messageHeight,
                             preview_height=self.previewHeight)
 
+
         #listen for click on plot window
         cv2.setMouseCallback(self.spectrograph_title,self.overlay.handle_mouse)
 
         self.overlay.draw_divisions()
         self.overlay.draw_sample_boundry(self.s.sample_start,self.s.sample_stop)
-        calmsg1, calmsg3 = self.s.calibration.status()
-        self.overlay.label('cal1',calmsg1)
-        self.overlay.label('cal3',calmsg3)
+        calmsg = self.s.calibration.status()
+        self.overlay.label('cal',calmsg)
+        self.overlay.label('sample_y',f"y={self.capture.crop_offset}")
         self.overlay.label('fps', f"Framerate: {self.capture.fps}")
         self.overlay.label('save', self.saveMsg)
         self.overlay.label('hold', holdmsg)

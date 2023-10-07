@@ -39,10 +39,10 @@ class Calibration():
 
     def status(self):
         if not self.pixels:
-            return "UNCALIBRATED!", "Perform Calibration!"
+            return "UNCALIBRATED"
         if len(self.pixels) == 3:
-            return "Calibrated!", "2nd Order Polyfit"
-        return "Calibrated!!", "3rd Order Polyfit"
+            return "Calibrated 2nd Order"
+        return "Calibrated 3rd Order"
 
     def map_px_wavelength(self):
         #create an array for the data...

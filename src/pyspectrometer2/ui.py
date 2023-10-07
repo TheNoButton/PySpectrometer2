@@ -67,8 +67,8 @@ class Overlay():
 
     def label(self,label,msg):
         locations = {
-            'cal1': (490,15),
-            'cal3': (490,33),
+            'cal': (490,15),
+            'sample_y': (490,33),
             'fps': (490,51),
             'save': (490,69),
             'hold': (640,15),
