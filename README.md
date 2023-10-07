@@ -133,6 +133,7 @@ There is nothing to stop you building a spectrometer head with a couple of razor
 * i/k = peak width up/down
 * u/j = Label threshold up/down
 * h = hold peaks
+* up/down = move location of sample window (vertical)
 
 ### Calibration and General Software
 * m = measure (Toggles measure function. In this mode a crosshairs is displayed on the Spectrogram that allows the measurement of wavelength)

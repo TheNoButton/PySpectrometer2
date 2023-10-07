@@ -166,12 +166,13 @@ def snapshot(savedata):
 	message = "Last Save: "+timenow
 	return(message)
 
+vertical_crop_origin_offset = 0
 while(cap.isOpened()):
 	# Capture frame-by-frame
 	ret, frame = cap.read()
 
 	if ret == True:
-		y=int((frameHeight/2)-40) #origin of the vertical crop
+		y=int((frameHeight/2)+vertical_crop_origin_offset) #origin of the vertical crop
 		#y=200 	#origin of the vert crop
 		x=0   	#origin of the horiz crop
 		h=80 	#height of the crop
@@ -370,6 +371,12 @@ while(cap.isOpened()):
 		keyPress = cv2.waitKey(1)
 		if keyPress == ord('q'):
 			break
+		elif keyPress == 84:
+			#down arrow
+			vertical_crop_origin_offset -= 1
+		elif keyPress == 82:
+			#up arrow
+			vertical_crop_origin_offset += 1
 		elif keyPress == ord('h'):
 			if holdpeaks == False:
 				holdpeaks = True
