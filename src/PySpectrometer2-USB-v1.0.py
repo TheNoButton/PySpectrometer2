@@ -47,11 +47,6 @@ if args.fullscreen:
 if args.waterfall:
 	print("Waterfall display enabled")
 	
-if args.fps:
-	fps = args.fps
-else:
-	fps = 30
-
 preferredFrameWidth = 800
 preferredFrameHeight = 600
 
@@ -62,7 +57,7 @@ cap = cv2.VideoCapture('/dev/video'+args.device, cv2.CAP_V4L)
 print("[info] W, H, FPS")
 cap.set(cv2.CAP_PROP_FRAME_WIDTH,preferredFrameWidth)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT,preferredFrameHeight)
-cap.set(cv2.CAP_PROP_FPS,fps)
+cap.set(cv2.CAP_PROP_FPS,args.fps)
 frameWidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 frameHeight = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 print(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
