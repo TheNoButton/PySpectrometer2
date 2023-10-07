@@ -5,7 +5,7 @@ PySpectrometer2 Les Wright 2022
 https://www.youtube.com/leslaboratory
 https://github.com/leswright1977
 
-This project is a follow on from: https://github.com/leswright1977/PySpectrometer 
+This project is a follow on from: https://github.com/leswright1977/PySpectrometer
 
 This is a more advanced, but more flexible version of the original program. Tk
 Has been dropped as the GUI to allow fullscreen mode on Raspberry Pi systems and
@@ -36,20 +36,22 @@ import numpy as np
 
 from .exceptions import CalibrationError
 
-from . import Spectrometer
+from .spectrometer import Spectrometer
+from .interactivity import SpectrometerInteractivity
+from .specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes
 from . import cli
 from . import ui
-from .specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes
 
 args = cli.args()
 spectrometer = Spectrometer()
+si = SpectrometerInteractivity(spectrometer)
 
 def main(s: Spectrometer):
     if args.fullscreen:
         print("Fullscreen Spectrometer enabled")
     if args.waterfall:
         print("Waterfall display enabled")
-        
+
 
     s.start_video_capture(args.device,args.width,args.height,args.fps)
     s.intensity = [0] * s.capture.width #array for intensity data...full of zeroes
@@ -132,11 +134,11 @@ def main(s: Spectrometer):
             if i>=64:
                 if i%64==0: #suppress the first line then draw the rest...
                     cv2.line(graph,(0,i),(s.capture.width,i),(100,100,100),1)
-        
+
         #Now process the intensity data and display it
         #intensity = []
         for i in range(cols):
-            #data = bwimage[halfway,i] #pull the pixel data from the halfway mark   
+            #data = bwimage[halfway,i] #pull the pixel data from the halfway mark
             #print(type(data)) #numpy.uint8
             #average the data of 3 rows of pixels:
             dataminus1 = bwimage[halfway-1,i]
@@ -144,8 +146,8 @@ def main(s: Spectrometer):
             dataplus1 = bwimage[halfway+1,i]
             data = (int(dataminus1)+int(datazero)+int(dataplus1))/3
             data = np.uint8(data)
-                    
-            
+
+
             if s.holdpeaks:
                 if data > s.intensity[i]:
                     s.intensity[i] = data
@@ -177,16 +179,16 @@ def main(s: Spectrometer):
 
         #Draw the intensity data :-)
         #first filter if not holding peaks!
-        
+
         if not s.holdpeaks:
             s.intensity = savitzky_golay(s.intensity,17,s.savpoly)
             s.intensity = np.array(s.intensity)
             s.intensity = s.intensity.astype(int)
-            holdmsg = "Holdpeaks OFF" 
+            holdmsg = "Holdpeaks OFF"
         else:
             holdmsg = "Holdpeaks ON"
-            
-        
+
+
         #now draw the intensity data....
         index=0
         for i in s.intensity:
@@ -215,7 +217,7 @@ def main(s: Spectrometer):
             #flagpoles
             cv2.line(graph,(i,height),(i,height+10),(0,0,0),1)
 
-        #stack the images and display the spectrum  
+        #stack the images and display the spectrum
         s.spectrum_vertical = np.vstack((ui.background,cropped, graph))
 
         s.overlay = ui.Overlay(s.spectrum_vertical,
@@ -248,7 +250,7 @@ def main(s: Spectrometer):
         cv2.imshow(s.spectrograph_title,s.spectrum_vertical)
 
         if args.waterfall:
-            #stack the images and display the waterfall 
+            #stack the images and display the waterfall
             s.waterfall_vertical = np.vstack((ui.background,cropped, waterfall))
             #dividing lines...
             cv2.line(s.waterfall_vertical,(0,80),(s.capture.width,80),(255,255,255),1)
@@ -258,7 +260,7 @@ def main(s: Spectrometer):
             textoffset = 12
 
             #vertical lines every whole 50nm
-            for positiondata in fifties:
+            for positiondata in s.fifties:
                 for i in range(162,480):
                     if i%20 == 0:
                         cv2.line(s.waterfall_vertical,(positiondata[0],i),(positiondata[0],i+1),(0,0,0),2)
@@ -267,7 +269,6 @@ def main(s: Spectrometer):
                 cv2.putText(s.waterfall_vertical,str(positiondata[1])+'nm',(positiondata[0]-textoffset,475),font,0.4,(255,255,255),1, cv2.LINE_AA)
 
             cv2.putText(s.waterfall_vertical,calmsg1,(490,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
-            cv2.putText(s.waterfall_vertical,calmsg2,(490,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
             cv2.putText(s.waterfall_vertical,calmsg3,(490,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
             cv2.putText(s.waterfall_vertical,saveMsg,(490,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
 
@@ -279,13 +280,13 @@ def main(s: Spectrometer):
         keyPress = cv2.waitKey(1)
         if keyPress == ord('q'):
             break
-        s.handle_keypress(keyPress,args)
+        si.handle_keypress(keyPress,args)
 
         #https://stackoverflow.com/a/45564409
         #handle window close
         if cv2.getWindowProperty(s.spectrograph_title,cv2.WND_PROP_VISIBLE) < 1:
             break
-    
+
     #Everything done, release the vid
     s.capture.release()
 
