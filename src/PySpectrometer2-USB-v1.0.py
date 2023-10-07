@@ -38,6 +38,7 @@ import cv2
 import numpy as np
 
 import cli
+import video
 from specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes,readcal,writecal,background,generateGraticule
 
 args = cli.args()
@@ -50,21 +51,8 @@ if args.waterfall:
 preferredFrameWidth = 800
 preferredFrameHeight = 600
 
-
-#init video
-cap = cv2.VideoCapture('/dev/video'+args.device, cv2.CAP_V4L)
-#cap = cv2.VideoCapture(0)
-print("[info] W, H, FPS")
-cap.set(cv2.CAP_PROP_FRAME_WIDTH,preferredFrameWidth)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT,preferredFrameHeight)
-cap.set(cv2.CAP_PROP_FPS,args.fps)
-frameWidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-frameHeight = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-print(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-print(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-print(cap.get(cv2.CAP_PROP_FPS))
-cfps = (cap.get(cv2.CAP_PROP_FPS))
-
+capture = video.Capture.initialize(args.device,preferredFrameWidth,preferredFrameHeight,args.fps)
+print(capture)
 
 title1 = 'PySpectrometer 2 - Spectrograph'
 title2 = 'PySpectrometer 2 - Waterfall'
@@ -73,7 +61,7 @@ stackHeight = 320+80+80 #height of the displayed CV window (graph+preview+messag
 if args.waterfall:
 	#watefall first so spectrum is on top
 	cv2.namedWindow(title2,cv2.WINDOW_GUI_NORMAL)
-	cv2.resizeWindow(title2,frameWidth,stackHeight)
+	cv2.resizeWindow(title2,capture.width,stackHeight)
 	cv2.moveWindow(title2,200,200);
 
 if args.fullscreen:
@@ -81,7 +69,7 @@ if args.fullscreen:
 	cv2.setWindowProperty(title1,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
 else:
 	cv2.namedWindow(title1,cv2.WINDOW_GUI_NORMAL)
-	cv2.resizeWindow(title1,frameWidth,stackHeight)
+	cv2.resizeWindow(title1,capture.width,stackHeight)
 	cv2.moveWindow(title1,0,0);
 
 #settings for peak detect
@@ -112,7 +100,7 @@ cv2.setMouseCallback(title1,handle_mouse)
 
 font=cv2.FONT_HERSHEY_SIMPLEX
 
-intensity = [0] * frameWidth #array for intensity data...full of zeroes
+intensity = [0] * capture.width #array for intensity data...full of zeroes
 
 holdpeaks = False #are we holding peaks?
 measure = False #are we measuring?
@@ -124,11 +112,11 @@ msg1 = ""
 saveMsg = "No data saved"
 
 #blank image for Waterfall
-waterfall = np.zeros([320,frameWidth,3],dtype=np.uint8)
+waterfall = np.zeros([320,capture.width,3],dtype=np.uint8)
 waterfall.fill(0) #fill black
 
 #Go grab the computed calibration data
-caldata = readcal(frameWidth)
+caldata = readcal(capture.width)
 wavelengthData = caldata[0]
 calmsg1 = caldata[1]
 calmsg2 = caldata[2]
@@ -159,9 +147,9 @@ def snapshot(savedata):
 	return(message)
 
 vertical_crop_origin_offset = 0
-while(cap.isOpened()):
+while(capture.isOpened()):
 	# Capture frame-by-frame
-	success, frame = cap.read()
+	success, frame = capture.read()
 	if not success:
 		break
 
@@ -170,19 +158,19 @@ while(cap.isOpened()):
 		FLIP_ABOUT_Y_AXIS = 1
 		frame = cv2.flip(frame,flipCode=FLIP_ABOUT_Y_AXIS)
 
-	y=int((frameHeight/2)+vertical_crop_origin_offset) #origin of the vertical crop
+	y=int((capture.height/2)+vertical_crop_origin_offset) #origin of the vertical crop
 	#y=200 	#origin of the vert crop
 	x=0   	#origin of the horiz crop
 	h=80 	#height of the crop
-	w=frameWidth 	#width of the crop
+	w=capture.width #width of the crop
 	cropped = frame[y:y+h, x:x+w]
 	bwimage = cv2.cvtColor(cropped,cv2.COLOR_BGR2GRAY)
 	rows,cols = bwimage.shape
 	halfway =int(rows/2)
 	#show our line on the original image
 	#now a 3px wide region
-	cv2.line(cropped,(0,halfway-2),(frameWidth,halfway-2),(255,255,255),1)
-	cv2.line(cropped,(0,halfway+2),(frameWidth,halfway+2),(255,255,255),1)
+	cv2.line(cropped,(0,halfway-2),(capture.width,halfway-2),(255,255,255),1)
+	cv2.line(cropped,(0,halfway+2),(capture.width,halfway+2),(255,255,255),1)
 
 	#banner image
 	decoded_data = base64.b64decode(background)
@@ -191,7 +179,7 @@ while(cap.isOpened()):
 	background_img = img
 
 	#blank image for Graph
-	graph = np.zeros([320,frameWidth,3],dtype=np.uint8)
+	graph = np.zeros([320,capture.width,3],dtype=np.uint8)
 	graph.fill(255) #fill white
 
 	#Display a graticule calibrated with cal data
@@ -209,7 +197,7 @@ while(cap.isOpened()):
 	for i in range (320):
 		if i>=64:
 			if i%64==0: #suppress the first line then draw the rest...
-				cv2.line(graph,(0,i),(frameWidth,i),(100,100,100),1)
+				cv2.line(graph,(0,i),(capture.width,i),(100,100,100),1)
 	
 	#Now process the intensity data and display it
 	#intensity = []
@@ -234,7 +222,7 @@ while(cap.isOpened()):
 		#waterfall....
 		#data is smoothed at this point!!!!!!
 		#create an empty array for the data
-		wdata = np.zeros([1,frameWidth,3],dtype=np.uint8)
+		wdata = np.zeros([1,capture.width,3],dtype=np.uint8)
 		index=0
 		for i in intensity:
 			rgb = wavelength_to_rgb(round(wavelengthData[index]))#derive the color from the wavelenthData array
@@ -323,12 +311,12 @@ while(cap.isOpened()):
 	#stack the images and display the spectrum	
 	spectrum_vertical = np.vstack((background_img,cropped, graph))
 	#dividing lines...
-	cv2.line(spectrum_vertical,(0,80),(frameWidth,80),(255,255,255),1)
-	cv2.line(spectrum_vertical,(0,160),(frameWidth,160),(255,255,255),1)
+	cv2.line(spectrum_vertical,(0,80),(capture.width,80),(255,255,255),1)
+	cv2.line(spectrum_vertical,(0,160),(capture.width,160),(255,255,255),1)
 	#print the messages
 	cv2.putText(spectrum_vertical,calmsg1,(490,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
 	cv2.putText(spectrum_vertical,calmsg3,(490,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,"Framerate: "+str(cfps),(490,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
+	cv2.putText(spectrum_vertical,"Framerate: "+str(capture.fps),(490,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
 	cv2.putText(spectrum_vertical,saveMsg,(490,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
 	#Second column
 	cv2.putText(spectrum_vertical,holdmsg,(640,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
@@ -341,8 +329,8 @@ while(cap.isOpened()):
 		#stack the images and display the waterfall	
 		waterfall_vertical = np.vstack((background_img,cropped, waterfall))
 		#dividing lines...
-		cv2.line(waterfall_vertical,(0,80),(frameWidth,80),(255,255,255),1)
-		cv2.line(waterfall_vertical,(0,160),(frameWidth,160),(255,255,255),1)
+		cv2.line(waterfall_vertical,(0,80),(capture.width,80),(255,255,255),1)
+		cv2.line(waterfall_vertical,(0,160),(capture.width,160),(255,255,255),1)
 		#Draw this stuff over the top of the image!
 		#Display a graticule calibrated with cal data
 		textoffset = 12
@@ -401,7 +389,7 @@ while(cap.isOpened()):
 		if calcomplete:
 			#overwrite wavelength data
 			#Go grab the computed calibration data
-			caldata = readcal(frameWidth)
+			caldata = readcal(capture.width)
 			wavelengthData = caldata[0]
 			calmsg1 = caldata[1]
 			calmsg2 = caldata[2]
@@ -445,7 +433,7 @@ while(cap.isOpened()):
 
  
 #Everything done, release the vid
-cap.release()
+capture.release()
 
 cv2.destroyAllWindows()
 
