@@ -389,10 +389,7 @@ while(cap.isOpened()):
 			#up arrow
 			vertical_crop_origin_offset += 1
 		elif keyPress == ord('h'):
-			if holdpeaks == False:
-				holdpeaks = True
-			elif holdpeaks == True:
-				holdpeaks = False
+			holdpeaks = not holdpeaks
 		elif keyPress == ord("s"):
 			#package up the data!
 			graphdata = []
@@ -426,16 +423,10 @@ while(cap.isOpened()):
 			clickArray = []
 		elif keyPress == ord("m"):
 			recPixels = False #turn off recpixels!
-			if measure == False:
-				measure = True
-			elif measure == True:
-				measure = False
+			measure = not measure
 		elif keyPress == ord("p"):
 			measure = False #turn off measure!
-			if recPixels == False:
-				recPixels = True
-			elif recPixels == True:
-				recPixels = False
+			recPixels = not recPixels
 		elif keyPress == ord("o"):#sav up
 				savpoly+=1
 				if savpoly >=15:
