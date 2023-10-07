@@ -35,7 +35,6 @@ For instructions please consult the readme!
 import cv2
 import numpy as np
 
-
 from . import cli
 from . import video
 from . import ui
@@ -83,23 +82,6 @@ thresh = 20 #Threshold max val 100
 
 calibrate = False
 
-clickArray = [] 
-cursorX = 0
-cursorY = 0
-def handle_mouse(event,x,y,flags,param):
-	global clickArray
-	global cursorX
-	global cursorY
-	mouseYOffset = 160
-	if event == cv2.EVENT_MOUSEMOVE:
-		cursorX = x
-		cursorY = y	
-	if event == cv2.EVENT_LBUTTONDOWN:
-		mouseX = x
-		mouseY = y-mouseYOffset
-		clickArray.append([mouseX,mouseY])
-#listen for click on plot window
-cv2.setMouseCallback(spectrograph_title,handle_mouse)
 
 
 font=cv2.FONT_HERSHEY_SIMPLEX
@@ -261,30 +243,6 @@ while(capture.isOpened()):
 		#flagpoles
 		cv2.line(graph,(i,height),(i,height+10),(0,0,0),1)
 
-
-	if measure == True:
-		#show the cursor!
-		cv2.line(graph,(cursorX,cursorY-140),(cursorX,cursorY-180),(0,0,0),1)
-		cv2.line(graph,(cursorX-20,cursorY-160),(cursorX+20,cursorY-160),(0,0,0),1)
-		cv2.putText(graph,str(round(wavelengthData[cursorX],2))+'nm',(cursorX+5,cursorY-165),font,0.4,(0,0,0),1, cv2.LINE_AA)
-
-	if recPixels == True:
-		#display the points
-		cv2.line(graph,(cursorX,cursorY-140),(cursorX,cursorY-180),(0,0,0),1)
-		cv2.line(graph,(cursorX-20,cursorY-160),(cursorX+20,cursorY-160),(0,0,0),1)
-		cv2.putText(graph,str(cursorX)+'px',(cursorX+5,cursorY-165),font,0.4,(0,0,0),1, cv2.LINE_AA)
-	else:
-		#also make sure the click array stays empty
-		clickArray = []
-
-	if clickArray:
-		for data in clickArray:
-			mouseX=data[0]
-			mouseY=data[1]
-			cv2.circle(graph,(mouseX,mouseY),5,(0,0,0),-1)
-			#we can display text :-) so we can work out wavelength from x-pos and display it ultimately
-			cv2.putText(graph,str(mouseX),(mouseX+5,mouseY),cv2.FONT_HERSHEY_SIMPLEX,0.4,(0,0,0))
-
 	#stack the images and display the spectrum	
 	spectrum_vertical = np.vstack((ui.background,cropped, graph))
 
@@ -292,6 +250,10 @@ while(capture.isOpened()):
 						 capture.width,
 						 message_height=messageHeight,
 						 preview_height=previewHeight)
+
+	#listen for click on plot window
+	cv2.setMouseCallback(spectrograph_title,overlay.handle_mouse)
+
 	overlay.draw_divisions()
 	overlay.label('cal1',calmsg1)
 	overlay.label('cal3',calmsg3)
@@ -301,6 +263,14 @@ while(capture.isOpened()):
 	overlay.label('savpoly', f"Savgol Filter: {savpoly}")
 	overlay.label('label_width', f"Label Peak Width: {mindist}")
 	overlay.label('label_threshold', f"Label Threshold: {thresh}")
+
+	if measure:
+		overlay.show_cursor()
+		overlay.show_measure(wavelengthData=wavelengthData)
+	elif recPixels:
+		overlay.show_cursor()
+		overlay.show_measure()
+		overlay.show_calibration_choices()
 
 	cv2.imshow(spectrograph_title,spectrum_vertical)
 
@@ -364,6 +334,7 @@ while(capture.isOpened()):
 			savedata.append(graphdata)
 		saveMsg = snapshot(savedata,waterfall=args.waterfall)
 	elif keyPress == ord("c"):
+		clickArray = [(c.x,c.y) for c in overlay.clicks]
 		calcomplete = writecal(clickArray)
 		if calcomplete:
 			#overwrite wavelength data
@@ -377,6 +348,7 @@ while(capture.isOpened()):
 			graticuleData = generateGraticule(wavelengthData)
 			tens = (graticuleData[0])
 			fifties = (graticuleData[1])
+			overlay.clear_claibration_clicks()
 	elif keyPress == ord("x"):
 		clickArray = []
 	elif keyPress == ord("m"):
