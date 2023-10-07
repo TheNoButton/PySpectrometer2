@@ -46,6 +46,19 @@ class Overlay():
             click = Coordinates(x,y)
             self.clicks.append(click)
 
+    def draw_sample_boundry(self, start, stop):
+        color = (255,0,0)
+        preview_start = self.message_height
+        preview_stop = preview_start + self.preview_height
+        sample_start = preview_start+start
+        sample_stop = preview_start+stop
+        top = max(preview_start,sample_start)
+        bottom = min(preview_stop,sample_stop)
+        for y in top,bottom:
+            begin = (0,y)
+            end = (self.frame_width,y)
+            cv2.line(self.mat,begin,end,color,thickness=1)
+
     def draw_divisions(self):
         #dividing lines...
         y=0

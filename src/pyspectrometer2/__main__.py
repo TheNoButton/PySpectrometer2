@@ -47,7 +47,6 @@ capture = video.Capture.initialize(args.device,args.width,args.height,args.fps)
 calibration = record.Calibration(capture.width)
 print(capture)
 spectrometer = Spectrometer(calibration)
-si = SpectrometerInteractivity(spectrometer)
 
 def main(s: Spectrometer):
     if args.fullscreen:
@@ -99,21 +98,6 @@ def main(s: Spectrometer):
             FLIP_ABOUT_Y_AXIS = 1
             frame = cv2.flip(frame,flipCode=FLIP_ABOUT_Y_AXIS)
 
-        y=int((capture.height/2)+s.vertical_crop_origin_offset) #origin of the vertical crop
-        #y=200  #origin of the vert crop
-        x=0     #origin of the horiz crop
-        h=s.previewHeight   #height of the crop
-        w=capture.width #width of the crop
-        cropped = frame[y:y+h, x:x+w]
-        bwimage = cv2.cvtColor(cropped,cv2.COLOR_BGR2GRAY)
-        rows,cols = bwimage.shape
-        halfway =int(rows/2)
-        #show our line on the original image
-        #now a 4px wide region
-        cv2.line(cropped,(0,halfway-2),(capture.width,halfway-2),(255,255,255),1)
-        cv2.line(cropped,(0,halfway+2),(capture.width,halfway+2),(255,255,255),1)
-
-
         #blank image for Graph
         graph = np.zeros([s.graphHeight,capture.width,3],dtype=np.uint8)
         graph.fill(255) #fill white
@@ -137,22 +121,20 @@ def main(s: Spectrometer):
 
         #Now process the intensity data and display it
         #intensity = []
-        for i in range(cols):
-            #data = bwimage[halfway,i] #pull the pixel data from the halfway mark
-            #print(type(data)) #numpy.uint8
-            #average the data of 3 rows of pixels:
-            dataminus1 = bwimage[halfway-1,i]
-            datazero = bwimage[halfway,i] #pull the pixel data from the halfway mark
-            dataplus1 = bwimage[halfway+1,i]
-            data = (int(dataminus1)+int(datazero)+int(dataplus1))/3
-            data = np.uint8(data)
 
-
-            if s.holdpeaks:
-                if data > s.intensity[i]:
-                    s.intensity[i] = data
-            else:
-                s.intensity[i] = data
+        cropped = capture.cropped_preview(frame)
+        bwimage = cv2.cvtColor(cropped,cv2.COLOR_BGR2GRAY)
+        sample_count = 3
+        crop_center = len(cropped) // 2
+        sample_start = max(0,crop_center - sample_count // 2)
+        sample_stop = min(len(cropped),sample_start + sample_count)
+        sample = bwimage[sample_start:sample_stop]
+        intensities = [sum(col)//len(col) for col in zip(*sample)]
+        if s.holdpeaks:
+           s.intensity = [max(previous,current) for previous,current in zip(s.intensity,intensities)]
+        else:
+           s.intensity = intensities
+        s.intensity = np.uint8(s.intensity)
 
         if args.waterfall:
             #waterfall....
@@ -220,24 +202,25 @@ def main(s: Spectrometer):
         #stack the images and display the spectrum
         s.spectrum_vertical = np.vstack((ui.background,cropped, graph))
 
-        s.overlay = ui.Overlay(s.spectrum_vertical,
+        overlay = ui.Overlay(s.spectrum_vertical,
                             capture.width,
                             message_height=s.messageHeight,
                             preview_height=s.previewHeight)
 
         #listen for click on plot window
-        cv2.setMouseCallback(s.spectrograph_title,s.overlay.handle_mouse)
+        cv2.setMouseCallback(s.spectrograph_title,overlay.handle_mouse)
 
-        s.overlay.draw_divisions()
+        overlay.draw_divisions()
+        overlay.draw_sample_boundry(sample_start,sample_stop)
         calmsg1, calmsg3 = s.calibration.status()
-        s.overlay.label('cal1',calmsg1)
-        s.overlay.label('cal3',calmsg3)
-        s.overlay.label('fps', f"Framerate: {capture.fps}")
-        s.overlay.label('save', saveMsg)
-        s.overlay.label('hold', holdmsg)
-        s.overlay.label('savpoly', f"Savgol Filter: {s.savpoly}")
-        s.overlay.label('label_width', f"Label Peak Width: {s.mindist}")
-        s.overlay.label('label_threshold', f"Label Threshold: {thresh}")
+        overlay.label('cal1',calmsg1)
+        overlay.label('cal3',calmsg3)
+        overlay.label('fps', f"Framerate: {capture.fps}")
+        overlay.label('save', saveMsg)
+        overlay.label('hold', holdmsg)
+        overlay.label('savpoly', f"Savgol Filter: {s.savpoly}")
+        overlay.label('label_width', f"Label Peak Width: {s.mindist}")
+        overlay.label('label_threshold', f"Label Threshold: {thresh}")
 
         if s.measure:
             s.overlay.show_cursor()
@@ -280,6 +263,7 @@ def main(s: Spectrometer):
         keyPress = cv2.waitKey(1)
         if keyPress == ord('q'):
             break
+        si = SpectrometerInteractivity(spectrometer,capture,overlay)
         si.handle_keypress(keyPress,args)
 
         #https://stackoverflow.com/a/45564409

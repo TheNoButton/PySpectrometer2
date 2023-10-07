@@ -2,21 +2,25 @@ from dataclasses import dataclass
 
 from .record import Calibration
 from . import record
+from .ui import Overlay
+from .video import Capture
 from .spectrometer import Spectrometer
 from .specFunctions import generateGraticule
 
 class SpectrometerInteractivity:
 
-    def __init__(self, s: Spectrometer):
+    def __init__(self, s: Spectrometer, capture: Capture, overlay: Overlay):
          self.s = s
+         self.overlay = overlay
+         self.capture = capture
 
     def handle_keypress(self,keyPress,args):
         if keyPress == 84:
             #down arrow
-            self.s.vertical_crop_origin_offset -= 1
+            self.capture.crop_offset -= 1
         elif keyPress == 82:
             #up arrow
-            self.s.vertical_crop_origin_offset += 1
+            self.capture.crop_offset += 1
         elif keyPress == ord('h'):
             self.s.holdpeaks = not self.s.holdpeaks
         elif keyPress == ord("s"):
@@ -35,26 +39,24 @@ class SpectrometerInteractivity:
                 savedata.append(graphdata)
             saveMsg = record.snapshot(savedata,waterfall=args.waterfall)
         elif keyPress == ord("c"):
-            clickArray = [(c.x,c.y) for c in self.s.overlay.clicks]
+            clickArray = [(c.x,c.y) for c in self.overlay.clicks]
             calcomplete = self.s.calibration.writecal(clickArray)
             if calcomplete:
                 #overwrite wavelength data
                 #Go grab the computed calibration data
                 self.s.calibration = Calibration(self.s.capture.width)
                 #overwrite graticule data
-                graticuleData = generateGraticule(self.calibration.wavelengthData)
-                tens = (graticuleData[0])
-                fifties = (graticuleData[1])
-                self.s.overlay.clear_claibration_clicks()
+                self.s.graticuleData = generateGraticule(self.calibration.wavelengthData)
+                self.overlay.clear_claibration_clicks()
         elif keyPress == ord("x"):
-            self.s.overlay.clear_claibration_clicks()
+            self.overlay.clear_claibration_clicks()
         elif keyPress == ord("m"):
             self.s.recPixels = False #turn off recpixels!
-            self.s.measure = not self.measure
+            self.s.measure = not self.s.measure
         elif keyPress == ord("p"):
             self.s.measure = False #turn off measure!
-            self.s.recPixels = not self.recPixels
-            self.s.overlay.clear_claibration_clicks()
+            self.s.recPixels = not self.s.recPixels
+            self.overlay.clear_claibration_clicks()
         elif keyPress == ord("o"):#sav up
                 self.s.savpoly+=1
                 if self.s.savpoly >=15:

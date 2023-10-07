@@ -170,8 +170,8 @@ def peakIndexes(y, thres=0.3, min_dist=1, thres_abs=False):
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     THE SOFTWARE.
     '''
-    if isinstance(y, np.ndarray) and np.issubdtype(y.dtype, np.unsignedinteger):
-        raise ValueError("y must be signed")
+    #if isinstance(y, np.ndarray) and np.issubdtype(y.dtype, np.unsignedinteger):
+    #    raise ValueError("y must be signed")
 
     if not thres_abs:
         thres = thres * (np.max(y) - np.min(y)) + np.min(y)
