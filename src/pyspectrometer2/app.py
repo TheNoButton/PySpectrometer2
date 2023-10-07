@@ -34,10 +34,19 @@ class App:
         self.holdpeaks: bool = False #are we holding peaks?
         self.measure: bool = False #are we measuring?
         self.recPixels: bool = False #are we measuring pixels and recording clicks?
-    
+
     def run(self):
         self.setup_windows()
         self.update_windows()
+
+    def close_event(self):
+        titles = [self.spectrograph_title]
+        if self.waterfall:
+            titles.append(self.waterfall_title)
+        for title in titles:
+            if cv2.getWindowProperty(title,cv2.WND_PROP_VISIBLE) < 1:
+                return True
+        return False
 
 
     @property
@@ -66,17 +75,11 @@ class App:
             keyPress = cv2.waitKey(1)
             if keyPress == ord('q'):
                 break
+            if self.close_event():
+                break
             si = SpectrometerInteractivity(self)
             si.handle_keypress(keyPress)
 
-            #https://stackoverflow.com/a/45564409
-            #handle window close
-            titles = [self.spectrograph_title]
-            if self.waterfall:
-               titles.append(self.waterfall_title)
-            for title in titles:
-                if cv2.getWindowProperty(title,cv2.WND_PROP_VISIBLE) < 1:
-                    self.capture.release()
 
         #Everything done, release the vid
         self.capture.release()
