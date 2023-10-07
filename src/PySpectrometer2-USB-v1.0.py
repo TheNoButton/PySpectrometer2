@@ -171,6 +171,11 @@ while(cap.isOpened()):
 	# Capture frame-by-frame
 	ret, frame = cap.read()
 
+	if args.flip:
+		FLIP_ABOUT_X_AXIS = 0
+		FLIP_ABOUT_Y_AXIS = 1
+		frame = cv2.flip(frame,flipCode=FLIP_ABOUT_Y_AXIS)
+
 	if ret == True:
 		y=int((frameHeight/2)+vertical_crop_origin_offset) #origin of the vertical crop
 		#y=200 	#origin of the vert crop
