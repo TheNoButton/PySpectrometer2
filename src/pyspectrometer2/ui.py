@@ -1,5 +1,18 @@
 from dataclasses import dataclass
+from importlib.resources import files
+
 import cv2
+import numpy as np
+
+
+def background_mat():
+	#banner image
+    background = files('pyspectrometer2').joinpath("static/background.png").read_bytes()
+    np_data = np.frombuffer(background,np.uint8)
+    mat = cv2.imdecode(np_data,3)
+    return mat
+
+background = background_mat()
 
 @dataclass
 class Overlay():

@@ -7,7 +7,11 @@ https://github.com/leswright1977
 
 This project is a follow on from: https://github.com/leswright1977/PySpectrometer 
 
-This is a more advanced, but more flexible version of the original program. Tk Has been dropped as the GUI to allow fullscreen mode on Raspberry Pi systems and the iterface is designed to fit 800*480 screens, which seem to be a common resolutin for RPi LCD's, paving the way for the creation of a stand alone benchtop instrument.
+This is a more advanced, but more flexible version of the original program. Tk
+Has been dropped as the GUI to allow fullscreen mode on Raspberry Pi systems and
+the iterface is designed to fit 800*480 screens, which seem to be a common
+resolutin for RPi LCD's, paving the way for the creation of a stand alone
+benchtop instrument.
 
 Whats new:
 Higher resolution (800px wide graph)
@@ -19,76 +23,57 @@ Labelled measurement cursors
 Optional waterfall display for recording spectra changes over time.
 Key Bindings for all operations
 
-All old features have been kept, including peak hold, peak detect, Savitsky Golay filter, and the ability to save graphs as png and data as CSV.
+All old features have been kept, including peak hold, peak detect, Savitsky
+Golay filter, and the ability to save graphs as png and data as CSV.
 
 For instructions please consult the readme!
+
 '''
 
 
-import cv2
 import time
-import numpy as np
-from specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes,readcal,writecal,background,generateGraticule
-import base64
-import argparse
-from picamera2 import Picamera2
 
-parser = argparse.ArgumentParser()
-group = parser.add_mutually_exclusive_group()
-group.add_argument("--fullscreen", help="Fullscreen (Native 800*480)",action="store_true")
-group.add_argument("--waterfall", help="Enable Waterfall (Windowed only)",action="store_true")
-args = parser.parse_args()
-dispFullscreen = False
-dispWaterfall = False
+import cv2
+import numpy as np
+
+from . import cli
+from . import video
+from . import ui
+from .specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes,readcal,writecal,generateGraticule
+
+args = cli.args()
+
 if args.fullscreen:
 	print("Fullscreen Spectrometer enabled")
-	dispFullscreen = True
 if args.waterfall:
 	print("Waterfall display enabled")
-	dispWaterfall = True
 	
-	
+preferredFrameWidth = 800
+preferredFrameHeight = 600
+graphHeight = 320
+previewHeight = 80
+messageHeight = 80
 
-frameWidth = 800
-frameHeight = 600
+capture = video.Capture.initialize(args.device,preferredFrameWidth,preferredFrameHeight,args.fps)
+print(capture)
 
-picam2 = Picamera2()
-#need to spend more time at: https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf
-#but this will do for now!
-#min and max microseconds per frame gives framerate.
-#30fps (33333, 33333)
-#25fps (40000, 40000)
+spectrograph_title = 'PySpectrometer 2 - Spectrograph'
+waterfall_title = 'PySpectrometer 2 - Waterfall'
+stackHeight = graphHeight+previewHeight+messageHeight #height of the displayed CV window 
 
-picamGain = 10.0
+if args.waterfall:
+	#waterfall first so spectrum is on top
+	cv2.namedWindow(waterfall_title,cv2.WINDOW_GUI_NORMAL)
+	cv2.resizeWindow(waterfall_title,capture.width,stackHeight)
+	cv2.moveWindow(waterfall_title,200,200);
 
-video_config = picam2.create_video_configuration(main={"format": 'RGB888', "size": (frameWidth, frameHeight)}, controls={"FrameDurationLimits": (33333, 33333)})
-picam2.configure(video_config)
-picam2.start()
-
-#Change analog gain
-#picam2.set_controls({"AnalogueGain": 10.0}) #Default 1
-#picam2.set_controls({"Brightness": 0.2}) #Default 0 range -1.0 to +1.0
-#picam2.set_controls({"Contrast": 1.8}) #Default 1 range 0.0-32.0
-
-
-
-title1 = 'PySpectrometer 2 - Spectrograph'
-title2 = 'PySpectrometer 2 - Waterfall'
-stackHeight = 320+80+80 #height of the displayed CV window (graph+preview+messages)
-
-if dispWaterfall == True:
-	#watefall first so spectrum is on top
-	cv2.namedWindow(title2,cv2.WINDOW_GUI_NORMAL)
-	cv2.resizeWindow(title2,frameWidth,stackHeight)
-	cv2.moveWindow(title2,200,200);
-
-if dispFullscreen == True:
-	cv2.namedWindow(title1,cv2.WND_PROP_FULLSCREEN)
-	cv2.setWindowProperty(title1,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
+if args.fullscreen:
+	cv2.namedWindow(spectrograph_title,cv2.WND_PROP_FULLSCREEN)
+	cv2.setWindowProperty(spectrograph_title,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
 else:
-	cv2.namedWindow(title1,cv2.WINDOW_GUI_NORMAL)
-	cv2.resizeWindow(title1,frameWidth,stackHeight)
-	cv2.moveWindow(title1,0,0);
+	cv2.namedWindow(spectrograph_title,cv2.WINDOW_GUI_NORMAL)
+	cv2.resizeWindow(spectrograph_title,capture.width,stackHeight)
+	cv2.moveWindow(spectrograph_title,0,0);
 
 #settings for peak detect
 savpoly = 7 #savgol filter polynomial max val 15
@@ -113,12 +98,12 @@ def handle_mouse(event,x,y,flags,param):
 		mouseY = y-mouseYOffset
 		clickArray.append([mouseX,mouseY])
 #listen for click on plot window
-cv2.setMouseCallback(title1,handle_mouse)
+cv2.setMouseCallback(spectrograph_title,handle_mouse)
 
 
 font=cv2.FONT_HERSHEY_SIMPLEX
 
-intensity = [0] * frameWidth #array for intensity data...full of zeroes
+intensity = [0] * capture.width #array for intensity data...full of zeroes
 
 holdpeaks = False #are we holding peaks?
 measure = False #are we measuring?
@@ -130,11 +115,11 @@ msg1 = ""
 saveMsg = "No data saved"
 
 #blank image for Waterfall
-waterfall = np.zeros([320,frameWidth,3],dtype=np.uint8)
+waterfall = np.zeros([graphHeight,capture.width,3],dtype=np.uint8)
 waterfall.fill(0) #fill black
 
 #Go grab the computed calibration data
-caldata = readcal(frameWidth)
+caldata = readcal(capture.width)
 wavelengthData = caldata[0]
 calmsg1 = caldata[1]
 calmsg2 = caldata[2]
@@ -150,7 +135,7 @@ def snapshot(savedata):
 	timenow = time.strftime("%H:%M:%S")
 	imdata1 = savedata[0]
 	graphdata = savedata[1]
-	if dispWaterfall == True:
+	if args.waterfall:
 		imdata2 = savedata[2]
 		cv2.imwrite("waterfall-" + now + ".png",imdata2)
 	cv2.imwrite("spectrum-" + now + ".png",imdata1)
@@ -164,50 +149,53 @@ def snapshot(savedata):
 	message = "Last Save: "+timenow
 	return(message)
 
-
-while True:
+vertical_crop_origin_offset = 0
+while(capture.isOpened()):
 	# Capture frame-by-frame
-	frame = picam2.capture_array()
-	y=int((frameHeight/2)-40) #origin of the vertical crop
+	success, frame = capture.read()
+	if not success:
+		break
+
+	if args.flip:
+		FLIP_ABOUT_X_AXIS = 0
+		FLIP_ABOUT_Y_AXIS = 1
+		frame = cv2.flip(frame,flipCode=FLIP_ABOUT_Y_AXIS)
+
+	y=int((capture.height/2)+vertical_crop_origin_offset) #origin of the vertical crop
 	#y=200 	#origin of the vert crop
 	x=0   	#origin of the horiz crop
-	h=80 	#height of the crop
-	w=frameWidth 	#width of the crop
+	h=previewHeight 	#height of the crop
+	w=capture.width #width of the crop
 	cropped = frame[y:y+h, x:x+w]
 	bwimage = cv2.cvtColor(cropped,cv2.COLOR_BGR2GRAY)
 	rows,cols = bwimage.shape
 	halfway =int(rows/2)
 	#show our line on the original image
-	#now a 3px wide region
-	cv2.line(cropped,(0,halfway-2),(frameWidth,halfway-2),(255,255,255),1)
-	cv2.line(cropped,(0,halfway+2),(frameWidth,halfway+2),(255,255,255),1)
+	#now a 4px wide region
+	cv2.line(cropped,(0,halfway-2),(capture.width,halfway-2),(255,255,255),1)
+	cv2.line(cropped,(0,halfway+2),(capture.width,halfway+2),(255,255,255),1)
 
-	#banner image
-	decoded_data = base64.b64decode(background)
-	np_data = np.frombuffer(decoded_data,np.uint8)
-	img = cv2.imdecode(np_data,3)
-	messages = img
 
 	#blank image for Graph
-	graph = np.zeros([320,frameWidth,3],dtype=np.uint8)
+	graph = np.zeros([graphHeight,capture.width,3],dtype=np.uint8)
 	graph.fill(255) #fill white
 
 	#Display a graticule calibrated with cal data
 	textoffset = 12
 	#vertial lines every whole 10nm
 	for position in tens:
-		cv2.line(graph,(position,15),(position,320),(200,200,200),1)
+		cv2.line(graph,(position,15),(position,graphHeight),(200,200,200),1)
 
 	#vertical lines every whole 50nm
 	for positiondata in fifties:
-		cv2.line(graph,(positiondata[0],15),(positiondata[0],320),(0,0,0),1)
+		cv2.line(graph,(positiondata[0],15),(positiondata[0],graphHeight),(0,0,0),1)
 		cv2.putText(graph,str(positiondata[1])+'nm',(positiondata[0]-textoffset,12),font,0.4,(0,0,0),1, cv2.LINE_AA)
 
 	#horizontal lines
-	for i in range (320):
+	for i in range (graphHeight):
 		if i>=64:
 			if i%64==0: #suppress the first line then draw the rest...
-				cv2.line(graph,(0,i),(frameWidth,i),(100,100,100),1)
+				cv2.line(graph,(0,i),(capture.width,i),(100,100,100),1)
 	
 	#Now process the intensity data and display it
 	#intensity = []
@@ -218,7 +206,7 @@ while True:
 		dataminus1 = bwimage[halfway-1,i]
 		datazero = bwimage[halfway,i] #pull the pixel data from the halfway mark
 		dataplus1 = bwimage[halfway+1,i]
-		data = (int(dataminus1)+int(datazero)+int(dataplus1))/3		
+		data = (int(dataminus1)+int(datazero)+int(dataplus1))/3
 		data = np.uint8(data)
 				
 		
@@ -228,11 +216,11 @@ while True:
 		else:
 			intensity[i] = data
 
-	if dispWaterfall == True:
+	if args.waterfall:
 		#waterfall....
 		#data is smoothed at this point!!!!!!
 		#create an empty array for the data
-		wdata = np.zeros([1,frameWidth,3],dtype=np.uint8)
+		wdata = np.zeros([1,capture.width,3],dtype=np.uint8)
 		index=0
 		for i in intensity:
 			rgb = wavelength_to_rgb(round(wavelengthData[index]))#derive the color from the wavelenthData array
@@ -244,14 +232,11 @@ while True:
 			#wdata[0,index]=(r,g,b) #fix me!!! how do we deal with this data??
 			wdata[0,index]=(r,g,b)
 			index+=1
-		#bright and contrast of final image
-		contrast = 2.5
-		brightness =10
-		wdata = cv2.addWeighted( wdata, contrast, wdata, 0, brightness)
 		waterfall = np.insert(waterfall, 0, wdata, axis=0) #insert line to beginning of array
 		waterfall = waterfall[:-1].copy() #remove last element from array
 
 		hsv = cv2.cvtColor(waterfall, cv2.COLOR_BGR2HSV)
+
 
 
 	#Draw the intensity data :-)
@@ -274,8 +259,8 @@ while True:
 		g = rgb[1]
 		b = rgb[2]
 		#or some reason origin is top left.
-		cv2.line(graph, (index,320), (index,320-i), (b,g,r), 1)
-		cv2.line(graph, (index,319-i), (index,320-i), (0,0,0), 1,cv2.LINE_AA)
+		cv2.line(graph, (index,graphHeight), (index,graphHeight-i), (b,g,r), 1)
+		cv2.line(graph, (index,319-i), (index,graphHeight-i), (0,0,0), 1,cv2.LINE_AA)
 		index+=1
 
 
@@ -317,33 +302,32 @@ while True:
 			cv2.circle(graph,(mouseX,mouseY),5,(0,0,0),-1)
 			#we can display text :-) so we can work out wavelength from x-pos and display it ultimately
 			cv2.putText(graph,str(mouseX),(mouseX+5,mouseY),cv2.FONT_HERSHEY_SIMPLEX,0.4,(0,0,0))
-	
-
-
 
 	#stack the images and display the spectrum	
-	spectrum_vertical = np.vstack((messages,cropped, graph))
-	#dividing lines...
-	cv2.line(spectrum_vertical,(0,80),(frameWidth,80),(255,255,255),1)
-	cv2.line(spectrum_vertical,(0,160),(frameWidth,160),(255,255,255),1)
-	#print the messages
-	cv2.putText(spectrum_vertical,calmsg1,(490,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,calmsg3,(490,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,saveMsg,(490,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,"Gain: "+str(picamGain),(490,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	#Second column
-	cv2.putText(spectrum_vertical,holdmsg,(640,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,"Savgol Filter: "+str(savpoly),(640,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,"Label Peak Width: "+str(mindist),(640,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,"Label Threshold: "+str(thresh),(640,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.imshow(title1,spectrum_vertical)
+	spectrum_vertical = np.vstack((ui.background,cropped, graph))
 
-	if dispWaterfall == True:
+	overlay = ui.Overlay(spectrum_vertical,
+						 capture.width,
+						 message_height=messageHeight,
+						 preview_height=previewHeight)
+	overlay.draw_divisions()
+	overlay.label('cal1',calmsg1)
+	overlay.label('cal3',calmsg3)
+	overlay.label('fps', f"Framerate: {capture.fps}")
+	overlay.label('save', saveMsg)
+	overlay.label('hold', holdmsg)
+	overlay.label('savpoly', f"Savgol Filter: {savpoly}")
+	overlay.label('label_width', f"Label Peak Width: {mindist}")
+	overlay.label('label_threshold', f"Label Threshold: {thresh}")
+
+	cv2.imshow(spectrograph_title,spectrum_vertical)
+
+	if args.waterfall:
 		#stack the images and display the waterfall	
-		waterfall_vertical = np.vstack((messages,cropped, waterfall))
+		waterfall_vertical = np.vstack((ui.background,cropped, waterfall))
 		#dividing lines...
-		cv2.line(waterfall_vertical,(0,80),(frameWidth,80),(255,255,255),1)
-		cv2.line(waterfall_vertical,(0,160),(frameWidth,160),(255,255,255),1)
+		cv2.line(waterfall_vertical,(0,80),(capture.width,80),(255,255,255),1)
+		cv2.line(waterfall_vertical,(0,160),(capture.width,160),(255,255,255),1)
 		#Draw this stuff over the top of the image!
 		#Display a graticule calibrated with cal data
 		textoffset = 12
@@ -358,29 +342,36 @@ while True:
 			cv2.putText(waterfall_vertical,str(positiondata[1])+'nm',(positiondata[0]-textoffset,475),font,0.4,(255,255,255),1, cv2.LINE_AA)
 
 		cv2.putText(waterfall_vertical,calmsg1,(490,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
-		cv2.putText(waterfall_vertical,calmsg3,(490,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
-		cv2.putText(waterfall_vertical,saveMsg,(490,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
-		cv2.putText(waterfall_vertical,"Gain: "+str(picamGain),(490,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
-		
+		cv2.putText(waterfall_vertical,calmsg2,(490,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
+		cv2.putText(waterfall_vertical,calmsg3,(490,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
+		cv2.putText(waterfall_vertical,saveMsg,(490,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
+
 		cv2.putText(waterfall_vertical,holdmsg,(640,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
 
-		cv2.imshow(title2,waterfall_vertical)
+		cv2.imshow(waterfall_title,waterfall_vertical)
 
 
 	keyPress = cv2.waitKey(1)
 	if keyPress == ord('q'):
 		break
+	#https://stackoverflow.com/a/45564409
+	#handle window close
+	elif cv2.getWindowProperty(spectrograph_title,cv2.WND_PROP_VISIBLE) < 1:
+		break
+	elif keyPress == 84:
+		#down arrow
+		vertical_crop_origin_offset -= 1
+	elif keyPress == 82:
+		#up arrow
+		vertical_crop_origin_offset += 1
 	elif keyPress == ord('h'):
-		if holdpeaks == False:
-			holdpeaks = True
-		elif holdpeaks == True:
-			holdpeaks = False
+		holdpeaks = not holdpeaks
 	elif keyPress == ord("s"):
 		#package up the data!
 		graphdata = []
 		graphdata.append(wavelengthData)
 		graphdata.append(intensity)
-		if dispWaterfall == True:
+		if args.waterfall:
 			savedata = []
 			savedata.append(spectrum_vertical)
 			savedata.append(graphdata)
@@ -395,7 +386,7 @@ while True:
 		if calcomplete:
 			#overwrite wavelength data
 			#Go grab the computed calibration data
-			caldata = readcal(frameWidth)
+			caldata = readcal(capture.width)
 			wavelengthData = caldata[0]
 			calmsg1 = caldata[1]
 			calmsg2 = caldata[2]
@@ -408,16 +399,10 @@ while True:
 		clickArray = []
 	elif keyPress == ord("m"):
 		recPixels = False #turn off recpixels!
-		if measure == False:
-			measure = True
-		elif measure == True:
-			measure = False
+		measure = not measure
 	elif keyPress == ord("p"):
 		measure = False #turn off measure!
-		if recPixels == False:
-			recPixels = True
-		elif recPixels == True:
-			recPixels = False
+		recPixels = not recPixels
 	elif keyPress == ord("o"):#sav up
 			savpoly+=1
 			if savpoly >=15:
@@ -443,23 +428,10 @@ while True:
 			if thresh <=0:
 				thresh=0
 
-	elif keyPress == ord("t"):#Gain up!
-			picamGain += 1
-			if picamGain >=50:
-				picamGain = 50.0
-			picam2.set_controls({"AnalogueGain": picamGain})
-			print("Camera Gain: "+str(picamGain))
-	elif keyPress == ord("g"):#Gain down
-			picamGain -= 1
-			if picamGain <=0:
-				picamGain = 0.0
-			picam2.set_controls({"AnalogueGain": picamGain})
-			print("Camera Gain: "+str(picamGain))								
-				
-
-
  
-#Everything done
+#Everything done, release the vid
+capture.release()
+
 cv2.destroyAllWindows()
 
 
