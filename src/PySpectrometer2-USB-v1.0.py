@@ -50,13 +50,16 @@ if args.waterfall:
 	
 preferredFrameWidth = 800
 preferredFrameHeight = 600
+graphHeight = 320
+previewHeight = 80
+messageHeight = 80
 
 capture = video.Capture.initialize(args.device,preferredFrameWidth,preferredFrameHeight,args.fps)
 print(capture)
 
 spectrograph_title = 'PySpectrometer 2 - Spectrograph'
 waterfall_title = 'PySpectrometer 2 - Waterfall'
-stackHeight = 320+80+80 #height of the displayed CV window (graph+preview+messages)
+stackHeight = graphHeight+previewHeight+messageHeight #height of the displayed CV window 
 
 if args.waterfall:
 	#waterfall first so spectrum is on top
@@ -112,7 +115,7 @@ msg1 = ""
 saveMsg = "No data saved"
 
 #blank image for Waterfall
-waterfall = np.zeros([320,capture.width,3],dtype=np.uint8)
+waterfall = np.zeros([graphHeight,capture.width,3],dtype=np.uint8)
 waterfall.fill(0) #fill black
 
 #Go grab the computed calibration data
@@ -161,7 +164,7 @@ while(capture.isOpened()):
 	y=int((capture.height/2)+vertical_crop_origin_offset) #origin of the vertical crop
 	#y=200 	#origin of the vert crop
 	x=0   	#origin of the horiz crop
-	h=80 	#height of the crop
+	h=previewHeight 	#height of the crop
 	w=capture.width #width of the crop
 	cropped = frame[y:y+h, x:x+w]
 	bwimage = cv2.cvtColor(cropped,cv2.COLOR_BGR2GRAY)
@@ -179,22 +182,22 @@ while(capture.isOpened()):
 	background_img = img
 
 	#blank image for Graph
-	graph = np.zeros([320,capture.width,3],dtype=np.uint8)
+	graph = np.zeros([graphHeight,capture.width,3],dtype=np.uint8)
 	graph.fill(255) #fill white
 
 	#Display a graticule calibrated with cal data
 	textoffset = 12
 	#vertial lines every whole 10nm
 	for position in tens:
-		cv2.line(graph,(position,15),(position,320),(200,200,200),1)
+		cv2.line(graph,(position,15),(position,graphHeight),(200,200,200),1)
 
 	#vertical lines every whole 50nm
 	for positiondata in fifties:
-		cv2.line(graph,(positiondata[0],15),(positiondata[0],320),(0,0,0),1)
+		cv2.line(graph,(positiondata[0],15),(positiondata[0],graphHeight),(0,0,0),1)
 		cv2.putText(graph,str(positiondata[1])+'nm',(positiondata[0]-textoffset,12),font,0.4,(0,0,0),1, cv2.LINE_AA)
 
 	#horizontal lines
-	for i in range (320):
+	for i in range (graphHeight):
 		if i>=64:
 			if i%64==0: #suppress the first line then draw the rest...
 				cv2.line(graph,(0,i),(capture.width,i),(100,100,100),1)
@@ -261,8 +264,8 @@ while(capture.isOpened()):
 		g = rgb[1]
 		b = rgb[2]
 		#or some reason origin is top left.
-		cv2.line(graph, (index,320), (index,320-i), (b,g,r), 1)
-		cv2.line(graph, (index,319-i), (index,320-i), (0,0,0), 1,cv2.LINE_AA)
+		cv2.line(graph, (index,graphHeight), (index,graphHeight-i), (b,g,r), 1)
+		cv2.line(graph, (index,319-i), (index,graphHeight-i), (0,0,0), 1,cv2.LINE_AA)
 		index+=1
 
 
