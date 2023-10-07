@@ -16,13 +16,12 @@ class App:
     waterfall_title: str = 'PySpectrometer 2 - Waterfall'
     font=cv2.FONT_HERSHEY_SIMPLEX
 
-
     def __init__(self,s: Spectrometer, capture: video.Capture, fullscreen=False, waterfall=False, flip=False):
         self.s = s
-        self.overlay: ui.Overlay = None
         self.history = np.zeros([self.graphHeight,s.calibration.width,3],dtype=np.uint8)
         self.history.fill(0) #fill black
         self.capture = capture
+        self.capture.preview_height = min(self.capture.height,self.previewHeight)
         self.saveMsg = "No saves"
 
         #preferences
@@ -170,9 +169,9 @@ class App:
             #flagpoles
             cv2.line(graph,(i,height),(i,height+10),(0,0,0),1)
 
-        #stack the images and display the spectrum
-        self.s.spectrum_vertical = np.vstack((ui.background,cropped, graph))
+        self.s.spectrum_vertical = np.vstack((ui.Overlay.background(self.capture.width),cropped, graph))
 
+        #stack the images and display the spectrum
         self.overlay = ui.Overlay(self.s.spectrum_vertical,
                             self.capture.width,
                             message_height=self.messageHeight,
@@ -225,7 +224,7 @@ class App:
 
         #stack the images and display the waterfall
         cropped = self.capture.cropped_preview(frame)
-        self.s.waterfall_vertical = np.vstack((ui.background,cropped, self.history))
+        self.s.waterfall_vertical = np.vstack((ui.Overlay.background(self.capture.width),cropped, self.history))
         #dividing lines...
         cv2.line(self.s.waterfall_vertical,(0,80),(self.capture.width,80),(255,255,255),1)
         cv2.line(self.s.waterfall_vertical,(0,160),(self.capture.width,160),(255,255,255),1)

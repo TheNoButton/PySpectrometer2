@@ -6,14 +6,12 @@ import cv2
 import numpy as np
 
 
-def background_mat():
+def logo():
     #banner image
     background = files('pyspectrometer2').joinpath("static/background.png").read_bytes()
     np_data = np.frombuffer(background,np.uint8)
     mat = cv2.imdecode(np_data,3)
     return mat
-
-background = background_mat()
 
 @dataclass
 class Coordinates():
@@ -24,8 +22,6 @@ class MouseEvent():
 
     def __init__(self,mat):
         self.mat = mat
-
-
 
 @dataclass
 class Overlay():
@@ -143,5 +139,12 @@ class Overlay():
     def clear_claibration_clicks(cls):
         cls.clicks = []
 
-
-
+    @classmethod
+    def background(cls,width):
+        "all black background, with logo overlay"
+        bg = np.zeros([cls.message_height,width,3],dtype=np.uint8)
+        img = logo()
+        h = min(bg.shape[0],img.shape[0])
+        w = min(bg.shape[1],img.shape[1])
+        bg[0:h,0:w] = img[0:h,0:w]
+        return bg
