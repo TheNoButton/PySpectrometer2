@@ -57,17 +57,19 @@ if args.fps:
 else:
 	fps = 30
 
-frameWidth = 800
-frameHeight = 600
+preferredFrameWidth = 800
+preferredFrameHeight = 600
 
 
 #init video
 cap = cv2.VideoCapture('/dev/video'+str(dev), cv2.CAP_V4L)
 #cap = cv2.VideoCapture(0)
 print("[info] W, H, FPS")
-cap.set(cv2.CAP_PROP_FRAME_WIDTH,frameWidth)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT,frameHeight)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH,preferredFrameWidth)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT,preferredFrameHeight)
 cap.set(cv2.CAP_PROP_FPS,fps)
+frameWidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+frameHeight = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 print(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 print(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 print(cap.get(cv2.CAP_PROP_FPS))
