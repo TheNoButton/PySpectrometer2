@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from .record import readcal, writecal
+from .record import Calibration
 from . import record
 from .specFunctions import generateGraticule
 
@@ -32,17 +32,13 @@ class SpectrometerInteractivity:
             saveMsg = record.snapshot(savedata,waterfall=args.waterfall)
         elif keyPress == ord("c"):
             clickArray = [(c.x,c.y) for c in self.overlay.clicks]
-            calcomplete = writecal(clickArray)
+            calcomplete = self.calibration.writecal(clickArray)
             if calcomplete:
                 #overwrite wavelength data
                 #Go grab the computed calibration data
-                caldata = readcal(self.capture.width)
-                wavelengthData = caldata[0]
-                calmsg1 = caldata[1]
-                calmsg2 = caldata[2]
-                calmsg3 = caldata[3]
+                self.calibration = Calibration()
                 #overwrite graticule data
-                graticuleData = generateGraticule(wavelengthData)
+                graticuleData = generateGraticule(self.calibration.wavelengthData)
                 tens = (graticuleData[0])
                 fifties = (graticuleData[1])
                 self.overlay.clear_claibration_clicks()

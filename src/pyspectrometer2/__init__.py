@@ -1,7 +1,8 @@
-from dataclasses import dataclass
+from dataclasses import dataclass,field
 from .interactivity import SpectrometerInteractivity
 from . import video
-
+from .record import Calibration
+from .specFunctions import generateGraticule
 
 @dataclass
 class Spectrometer(SpectrometerInteractivity):
@@ -19,7 +20,9 @@ class Spectrometer(SpectrometerInteractivity):
     showWaterfall: bool = False
 
     #calibration
+    calibration: Calibration = None
     vertical_crop_origin_offset: int = 0
+    graticuleData: list = None
 
     #settings for peak detect
     savpoly: int = 7 #savgol filter polynomial max val 15
@@ -28,14 +31,23 @@ class Spectrometer(SpectrometerInteractivity):
 
     def __post_init__(self):
         self.intensity = []
-        self.wavelengthData = []
         self.capture = None
-    
+
     def start_video_capture(self,device,width,height,fps):
         self.capture = video.Capture.initialize(device,width,height,fps)
+        self.calibration = Calibration(self.capture.width)
+        self.graticuleData = generateGraticule(self.calibration.wavelengthData)
         print(self.capture)
 
     @property
     def stackHeight(self):
-       #height of the displayed CV window 
+       #height of the displayed CV window
        return self.graphHeight+self.previewHeight+self.messageHeight
+
+    @property
+    def tens(self):
+        return self.graticuleData[0]
+
+    @property
+    def fifties(self):
+        return self.graticuleData[1]

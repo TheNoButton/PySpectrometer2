@@ -34,12 +34,12 @@ For instructions please consult the readme!
 import cv2
 import numpy as np
 
+from .exceptions import CalibrationError
+
 from . import Spectrometer
 from . import cli
 from . import ui
-from . import video
-from .record import readcal, snapshot, writecal
-from .specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes,generateGraticule
+from .specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes
 
 args = cli.args()
 spectrometer = Spectrometer()
@@ -86,18 +86,6 @@ def main(s: Spectrometer):
     waterfall = np.zeros([s.graphHeight,s.capture.width,3],dtype=np.uint8)
     waterfall.fill(0) #fill black
 
-    #Go grab the computed calibration data
-    caldata = readcal(s.capture.width)
-    s.wavelengthData = caldata[0]
-    calmsg1 = caldata[1]
-    calmsg2 = caldata[2]
-    calmsg3 = caldata[3]
-
-    #generate the craticule data
-    graticuleData = generateGraticule(s.wavelengthData)
-    tens = (graticuleData[0])
-    fifties = (graticuleData[1])
-
     while(s.capture.isOpened()):
         # Capture frame-by-frame
         success, frame = s.capture.read()
@@ -131,11 +119,11 @@ def main(s: Spectrometer):
         #Display a graticule calibrated with cal data
         textoffset = 12
         #vertial lines every whole 10nm
-        for position in tens:
+        for position in s.tens:
             cv2.line(graph,(position,15),(position,s.graphHeight),(200,200,200),1)
 
         #vertical lines every whole 50nm
-        for positiondata in fifties:
+        for positiondata in s.fifties:
             cv2.line(graph,(positiondata[0],15),(positiondata[0],s.graphHeight),(0,0,0),1)
             cv2.putText(graph,str(positiondata[1])+'nm',(positiondata[0]-textoffset,12),font,0.4,(0,0,0),1, cv2.LINE_AA)
 
@@ -171,7 +159,7 @@ def main(s: Spectrometer):
             wdata = np.zeros([1,s.capture.width,3],dtype=np.uint8)
             index=0
             for i in s.intensity:
-                rgb = wavelength_to_rgb(round(s.wavelengthData[index]))#derive the color from the wavelenthData array
+                rgb = wavelength_to_rgb(round(s.calbration.wavelengthData[index]))#derive the color from the wavelenthData array
                 luminosity = s.intensity[index]/255
                 b = int(round(rgb[0]*luminosity))
                 g = int(round(rgb[1]*luminosity))
@@ -202,7 +190,7 @@ def main(s: Spectrometer):
         #now draw the intensity data....
         index=0
         for i in s.intensity:
-            rgb = wavelength_to_rgb(round(s.wavelengthData[index]))#derive the color from the wvalenthData array
+            rgb = wavelength_to_rgb(round(s.calibration.wavelengthData[index]))#derive the color from the wvalenthData array
             r = rgb[0]
             g = rgb[1]
             b = rgb[2]
@@ -220,7 +208,7 @@ def main(s: Spectrometer):
         for i in indexes:
             height = s.intensity[i]
             height = 310-height
-            wavelength = round(s.wavelengthData[i],1)
+            wavelength = round(s.calibration.wavelengthData[i],1)
             cv2.rectangle(graph,((i-textoffset)-2,height),((i-textoffset)+60,height-15),(0,255,255),-1)
             cv2.rectangle(graph,((i-textoffset)-2,height),((i-textoffset)+60,height-15),(0,0,0),1)
             cv2.putText(graph,str(wavelength)+'nm',(i-textoffset,height-3),font,0.4,(0,0,0),1, cv2.LINE_AA)
@@ -239,6 +227,7 @@ def main(s: Spectrometer):
         cv2.setMouseCallback(s.spectrograph_title,s.overlay.handle_mouse)
 
         s.overlay.draw_divisions()
+        calmsg1, calmsg3 = s.calibration.status()
         s.overlay.label('cal1',calmsg1)
         s.overlay.label('cal3',calmsg3)
         s.overlay.label('fps', f"Framerate: {s.capture.fps}")
@@ -250,7 +239,7 @@ def main(s: Spectrometer):
 
         if s.measure:
             s.overlay.show_cursor()
-            s.overlay.show_measure(wavelengthData=s.wavelengthData)
+            s.overlay.show_measure(wavelengthData=s.calibration.wavelengthData)
         elif s.recPixels:
             s.overlay.show_cursor()
             s.overlay.show_measure()
