@@ -5,7 +5,7 @@ The second incarnation of the Spectrometer project!
 This is a more advanced, but more flexible version of the original program. It changes the spectrometer from educational 'toy' to serious instrument, which can easily compete with commercial units costing thousands of dollars!
 
 This program, hardware design, and associated information is Open Source (see Licence), but if you have gotten value from these kinds of projects and think they are worth something, please consider donating: https://paypal.me/leslaboratory?locale.x=en_GB
-This project is a follow on from: https://github.com/leswright1977/PySpectrometer 
+This project is a follow on from: https://github.com/leswright1977/PySpectrometer
 
 This readme is accompanied by youtube videos, showing how to build and use the spectrometer!
 Visit my Youtube Channel at: https://www.youtube.com/leslaboratory
@@ -142,6 +142,7 @@ There is nothing to stop you building a spectrometer head with a couple of razor
 * c = calibrate (Enter the calibration routine, requires console input)
 * s = save data (Saves Spectrograph as png and CSV data. Saves waterfall as png.
 * q = quit (Quit Program)
+* up/down = move sampling line
 
 ## Starting the program
 
@@ -191,8 +192,8 @@ You should be able to identify several peaks in your graph, now you need to matc
 Likely the most useful is this graph: https://commons.wikimedia.org/wiki/File:Fluorescent_lighting_spectrum_peaks_labeled_with_colored_peaks_added.png
 
 These are the notable visible peaks:
-* 1 405.4 nm (Mercury) 
-* 2 436.6 nm (Mercury)        
+* 1 405.4 nm (Mercury)
+* 2 436.6 nm (Mercury)
 * 3 487.7    (Terbium)
 * 4 542.4    (Terbium)
 * 5 546.5    (Mercury)
@@ -237,7 +238,7 @@ Pressing the 'm' key will toggle a measurement cursor. This can be used (once th
 
 ![Screenshot](media/terbium-measure.png)
 
-Below: Another example of measurement cursors on a weak line at 437nm. This is from a high pressure Sodium lamp as is in fact likely Mercury (HP Sodium lamps contain Xenon, Mecury and Sodium). 
+Below: Another example of measurement cursors on a weak line at 437nm. This is from a high pressure Sodium lamp as is in fact likely Mercury (HP Sodium lamps contain Xenon, Mecury and Sodium).
 
 The prominent peak at 589nm is Sodium.
 Of the other peaks: 546.6nm is Mercury, 568.9nm is Sodium, 577nm and 579nm (unlabelled, but just to the left of the 589nm Sodium peak) are both Mercury.
@@ -250,8 +251,9 @@ A version of the software is provided for those who wish to use third party USB 
 
 The following command line options must be considered:
 
-- Video device number
-- Framerate
+- `--device` Video device number
+- `--fps` Preferred framerate
+- `--flip` Capture image mirroring (if the original image is arranged red to blue)
 
 **Note: the expected resolution from USB cameras is 800x600, other resolutions will cause the software to crash!**
 
