@@ -22,7 +22,7 @@ class SpectrometerInteractivity:
         elif keyPress == ord("s"):
             #package up the data!
             graphdata = []
-            graphdata.append(self.s.wavelengthData)
+            graphdata.append(self.s.calibration.wavelengthData)
             graphdata.append(self.s.intensity)
             if args.waterfall:
                 savedata = []
