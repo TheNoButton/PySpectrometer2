@@ -161,288 +161,287 @@ def snapshot(savedata):
 vertical_crop_origin_offset = 0
 while(cap.isOpened()):
 	# Capture frame-by-frame
-	ret, frame = cap.read()
+	success, frame = cap.read()
+	if not success:
+		break
 
 	if args.flip:
 		FLIP_ABOUT_X_AXIS = 0
 		FLIP_ABOUT_Y_AXIS = 1
 		frame = cv2.flip(frame,flipCode=FLIP_ABOUT_Y_AXIS)
 
-	if ret == True:
-		y=int((frameHeight/2)+vertical_crop_origin_offset) #origin of the vertical crop
-		#y=200 	#origin of the vert crop
-		x=0   	#origin of the horiz crop
-		h=80 	#height of the crop
-		w=frameWidth 	#width of the crop
-		cropped = frame[y:y+h, x:x+w]
-		bwimage = cv2.cvtColor(cropped,cv2.COLOR_BGR2GRAY)
-		rows,cols = bwimage.shape
-		halfway =int(rows/2)
-		#show our line on the original image
-		#now a 3px wide region
-		cv2.line(cropped,(0,halfway-2),(frameWidth,halfway-2),(255,255,255),1)
-		cv2.line(cropped,(0,halfway+2),(frameWidth,halfway+2),(255,255,255),1)
+	y=int((frameHeight/2)+vertical_crop_origin_offset) #origin of the vertical crop
+	#y=200 	#origin of the vert crop
+	x=0   	#origin of the horiz crop
+	h=80 	#height of the crop
+	w=frameWidth 	#width of the crop
+	cropped = frame[y:y+h, x:x+w]
+	bwimage = cv2.cvtColor(cropped,cv2.COLOR_BGR2GRAY)
+	rows,cols = bwimage.shape
+	halfway =int(rows/2)
+	#show our line on the original image
+	#now a 3px wide region
+	cv2.line(cropped,(0,halfway-2),(frameWidth,halfway-2),(255,255,255),1)
+	cv2.line(cropped,(0,halfway+2),(frameWidth,halfway+2),(255,255,255),1)
 
-		#banner image
-		decoded_data = base64.b64decode(background)
-		np_data = np.frombuffer(decoded_data,np.uint8)
-		img = cv2.imdecode(np_data,3)
-		background_img = img
+	#banner image
+	decoded_data = base64.b64decode(background)
+	np_data = np.frombuffer(decoded_data,np.uint8)
+	img = cv2.imdecode(np_data,3)
+	background_img = img
 
-		#blank image for Graph
-		graph = np.zeros([320,frameWidth,3],dtype=np.uint8)
-		graph.fill(255) #fill white
+	#blank image for Graph
+	graph = np.zeros([320,frameWidth,3],dtype=np.uint8)
+	graph.fill(255) #fill white
 
+	#Display a graticule calibrated with cal data
+	textoffset = 12
+	#vertial lines every whole 10nm
+	for position in tens:
+		cv2.line(graph,(position,15),(position,320),(200,200,200),1)
+
+	#vertical lines every whole 50nm
+	for positiondata in fifties:
+		cv2.line(graph,(positiondata[0],15),(positiondata[0],320),(0,0,0),1)
+		cv2.putText(graph,str(positiondata[1])+'nm',(positiondata[0]-textoffset,12),font,0.4,(0,0,0),1, cv2.LINE_AA)
+
+	#horizontal lines
+	for i in range (320):
+		if i>=64:
+			if i%64==0: #suppress the first line then draw the rest...
+				cv2.line(graph,(0,i),(frameWidth,i),(100,100,100),1)
+	
+	#Now process the intensity data and display it
+	#intensity = []
+	for i in range(cols):
+		#data = bwimage[halfway,i] #pull the pixel data from the halfway mark	
+		#print(type(data)) #numpy.uint8
+		#average the data of 3 rows of pixels:
+		dataminus1 = bwimage[halfway-1,i]
+		datazero = bwimage[halfway,i] #pull the pixel data from the halfway mark
+		dataplus1 = bwimage[halfway+1,i]
+		data = (int(dataminus1)+int(datazero)+int(dataplus1))/3
+		data = np.uint8(data)
+				
+		
+		if holdpeaks == True:
+			if data > intensity[i]:
+				intensity[i] = data
+		else:
+			intensity[i] = data
+
+	if args.waterfall:
+		#waterfall....
+		#data is smoothed at this point!!!!!!
+		#create an empty array for the data
+		wdata = np.zeros([1,frameWidth,3],dtype=np.uint8)
+		index=0
+		for i in intensity:
+			rgb = wavelength_to_rgb(round(wavelengthData[index]))#derive the color from the wavelenthData array
+			luminosity = intensity[index]/255
+			b = int(round(rgb[0]*luminosity))
+			g = int(round(rgb[1]*luminosity))
+			r = int(round(rgb[2]*luminosity))
+			#print(b,g,r)
+			#wdata[0,index]=(r,g,b) #fix me!!! how do we deal with this data??
+			wdata[0,index]=(r,g,b)
+			index+=1
+		waterfall = np.insert(waterfall, 0, wdata, axis=0) #insert line to beginning of array
+		waterfall = waterfall[:-1].copy() #remove last element from array
+
+		hsv = cv2.cvtColor(waterfall, cv2.COLOR_BGR2HSV)
+
+
+
+	#Draw the intensity data :-)
+	#first filter if not holding peaks!
+	
+	if holdpeaks == False:
+		intensity = savitzky_golay(intensity,17,savpoly)
+		intensity = np.array(intensity)
+		intensity = intensity.astype(int)
+		holdmsg = "Holdpeaks OFF" 
+	else:
+		holdmsg = "Holdpeaks ON"
+		
+	
+	#now draw the intensity data....
+	index=0
+	for i in intensity:
+		rgb = wavelength_to_rgb(round(wavelengthData[index]))#derive the color from the wvalenthData array
+		r = rgb[0]
+		g = rgb[1]
+		b = rgb[2]
+		#or some reason origin is top left.
+		cv2.line(graph, (index,320), (index,320-i), (b,g,r), 1)
+		cv2.line(graph, (index,319-i), (index,320-i), (0,0,0), 1,cv2.LINE_AA)
+		index+=1
+
+
+	#find peaks and label them
+	textoffset = 12
+	thresh = int(thresh) #make sure the data is int.
+	indexes = peakIndexes(intensity, thres=thresh/max(intensity), min_dist=mindist)
+	#print(indexes)
+	for i in indexes:
+		height = intensity[i]
+		height = 310-height
+		wavelength = round(wavelengthData[i],1)
+		cv2.rectangle(graph,((i-textoffset)-2,height),((i-textoffset)+60,height-15),(0,255,255),-1)
+		cv2.rectangle(graph,((i-textoffset)-2,height),((i-textoffset)+60,height-15),(0,0,0),1)
+		cv2.putText(graph,str(wavelength)+'nm',(i-textoffset,height-3),font,0.4,(0,0,0),1, cv2.LINE_AA)
+		#flagpoles
+		cv2.line(graph,(i,height),(i,height+10),(0,0,0),1)
+
+
+	if measure == True:
+		#show the cursor!
+		cv2.line(graph,(cursorX,cursorY-140),(cursorX,cursorY-180),(0,0,0),1)
+		cv2.line(graph,(cursorX-20,cursorY-160),(cursorX+20,cursorY-160),(0,0,0),1)
+		cv2.putText(graph,str(round(wavelengthData[cursorX],2))+'nm',(cursorX+5,cursorY-165),font,0.4,(0,0,0),1, cv2.LINE_AA)
+
+	if recPixels == True:
+		#display the points
+		cv2.line(graph,(cursorX,cursorY-140),(cursorX,cursorY-180),(0,0,0),1)
+		cv2.line(graph,(cursorX-20,cursorY-160),(cursorX+20,cursorY-160),(0,0,0),1)
+		cv2.putText(graph,str(cursorX)+'px',(cursorX+5,cursorY-165),font,0.4,(0,0,0),1, cv2.LINE_AA)
+	else:
+		#also make sure the click array stays empty
+		clickArray = []
+
+	if clickArray:
+		for data in clickArray:
+			mouseX=data[0]
+			mouseY=data[1]
+			cv2.circle(graph,(mouseX,mouseY),5,(0,0,0),-1)
+			#we can display text :-) so we can work out wavelength from x-pos and display it ultimately
+			cv2.putText(graph,str(mouseX),(mouseX+5,mouseY),cv2.FONT_HERSHEY_SIMPLEX,0.4,(0,0,0))
+	
+
+
+
+	#stack the images and display the spectrum	
+	spectrum_vertical = np.vstack((background_img,cropped, graph))
+	#dividing lines...
+	cv2.line(spectrum_vertical,(0,80),(frameWidth,80),(255,255,255),1)
+	cv2.line(spectrum_vertical,(0,160),(frameWidth,160),(255,255,255),1)
+	#print the messages
+	cv2.putText(spectrum_vertical,calmsg1,(490,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
+	cv2.putText(spectrum_vertical,calmsg3,(490,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
+	cv2.putText(spectrum_vertical,"Framerate: "+str(cfps),(490,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
+	cv2.putText(spectrum_vertical,saveMsg,(490,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
+	#Second column
+	cv2.putText(spectrum_vertical,holdmsg,(640,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
+	cv2.putText(spectrum_vertical,"Savgol Filter: "+str(savpoly),(640,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
+	cv2.putText(spectrum_vertical,"Label Peak Width: "+str(mindist),(640,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
+	cv2.putText(spectrum_vertical,"Label Threshold: "+str(thresh),(640,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
+	cv2.imshow(title1,spectrum_vertical)
+
+	if args.waterfall:
+		#stack the images and display the waterfall	
+		waterfall_vertical = np.vstack((background_img,cropped, waterfall))
+		#dividing lines...
+		cv2.line(waterfall_vertical,(0,80),(frameWidth,80),(255,255,255),1)
+		cv2.line(waterfall_vertical,(0,160),(frameWidth,160),(255,255,255),1)
+		#Draw this stuff over the top of the image!
 		#Display a graticule calibrated with cal data
 		textoffset = 12
-		#vertial lines every whole 10nm
-		for position in tens:
-			cv2.line(graph,(position,15),(position,320),(200,200,200),1)
 
 		#vertical lines every whole 50nm
 		for positiondata in fifties:
-			cv2.line(graph,(positiondata[0],15),(positiondata[0],320),(0,0,0),1)
-			cv2.putText(graph,str(positiondata[1])+'nm',(positiondata[0]-textoffset,12),font,0.4,(0,0,0),1, cv2.LINE_AA)
+			for i in range(162,480):
+				if i%20 == 0:
+					cv2.line(waterfall_vertical,(positiondata[0],i),(positiondata[0],i+1),(0,0,0),2)
+					cv2.line(waterfall_vertical,(positiondata[0],i),(positiondata[0],i+1),(255,255,255),1)
+			cv2.putText(waterfall_vertical,str(positiondata[1])+'nm',(positiondata[0]-textoffset,475),font,0.4,(0,0,0),2, cv2.LINE_AA)
+			cv2.putText(waterfall_vertical,str(positiondata[1])+'nm',(positiondata[0]-textoffset,475),font,0.4,(255,255,255),1, cv2.LINE_AA)
 
-		#horizontal lines
-		for i in range (320):
-			if i>=64:
-				if i%64==0: #suppress the first line then draw the rest...
-					cv2.line(graph,(0,i),(frameWidth,i),(100,100,100),1)
-		
-		#Now process the intensity data and display it
-		#intensity = []
-		for i in range(cols):
-			#data = bwimage[halfway,i] #pull the pixel data from the halfway mark	
-			#print(type(data)) #numpy.uint8
-			#average the data of 3 rows of pixels:
-			dataminus1 = bwimage[halfway-1,i]
-			datazero = bwimage[halfway,i] #pull the pixel data from the halfway mark
-			dataplus1 = bwimage[halfway+1,i]
-			data = (int(dataminus1)+int(datazero)+int(dataplus1))/3
-			data = np.uint8(data)
-					
-			
-			if holdpeaks == True:
-				if data > intensity[i]:
-					intensity[i] = data
-			else:
-				intensity[i] = data
+		cv2.putText(waterfall_vertical,calmsg1,(490,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
+		cv2.putText(waterfall_vertical,calmsg2,(490,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
+		cv2.putText(waterfall_vertical,calmsg3,(490,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
+		cv2.putText(waterfall_vertical,saveMsg,(490,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
 
-		if args.waterfall:
-			#waterfall....
-			#data is smoothed at this point!!!!!!
-			#create an empty array for the data
-			wdata = np.zeros([1,frameWidth,3],dtype=np.uint8)
-			index=0
-			for i in intensity:
-				rgb = wavelength_to_rgb(round(wavelengthData[index]))#derive the color from the wavelenthData array
-				luminosity = intensity[index]/255
-				b = int(round(rgb[0]*luminosity))
-				g = int(round(rgb[1]*luminosity))
-				r = int(round(rgb[2]*luminosity))
-				#print(b,g,r)
-				#wdata[0,index]=(r,g,b) #fix me!!! how do we deal with this data??
-				wdata[0,index]=(r,g,b)
-				index+=1
-			waterfall = np.insert(waterfall, 0, wdata, axis=0) #insert line to beginning of array
-			waterfall = waterfall[:-1].copy() #remove last element from array
+		cv2.putText(waterfall_vertical,holdmsg,(640,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
 
-			hsv = cv2.cvtColor(waterfall, cv2.COLOR_BGR2HSV)
+		cv2.imshow(title2,waterfall_vertical)
 
 
-
-		#Draw the intensity data :-)
-		#first filter if not holding peaks!
-		
-		if holdpeaks == False:
-			intensity = savitzky_golay(intensity,17,savpoly)
-			intensity = np.array(intensity)
-			intensity = intensity.astype(int)
-			holdmsg = "Holdpeaks OFF" 
-		else:
-			holdmsg = "Holdpeaks ON"
-			
-		
-		#now draw the intensity data....
-		index=0
-		for i in intensity:
-			rgb = wavelength_to_rgb(round(wavelengthData[index]))#derive the color from the wvalenthData array
-			r = rgb[0]
-			g = rgb[1]
-			b = rgb[2]
-			#or some reason origin is top left.
-			cv2.line(graph, (index,320), (index,320-i), (b,g,r), 1)
-			cv2.line(graph, (index,319-i), (index,320-i), (0,0,0), 1,cv2.LINE_AA)
-			index+=1
-
-
-		#find peaks and label them
-		textoffset = 12
-		thresh = int(thresh) #make sure the data is int.
-		indexes = peakIndexes(intensity, thres=thresh/max(intensity), min_dist=mindist)
-		#print(indexes)
-		for i in indexes:
-			height = intensity[i]
-			height = 310-height
-			wavelength = round(wavelengthData[i],1)
-			cv2.rectangle(graph,((i-textoffset)-2,height),((i-textoffset)+60,height-15),(0,255,255),-1)
-			cv2.rectangle(graph,((i-textoffset)-2,height),((i-textoffset)+60,height-15),(0,0,0),1)
-			cv2.putText(graph,str(wavelength)+'nm',(i-textoffset,height-3),font,0.4,(0,0,0),1, cv2.LINE_AA)
-			#flagpoles
-			cv2.line(graph,(i,height),(i,height+10),(0,0,0),1)
-
-
-		if measure == True:
-			#show the cursor!
-			cv2.line(graph,(cursorX,cursorY-140),(cursorX,cursorY-180),(0,0,0),1)
-			cv2.line(graph,(cursorX-20,cursorY-160),(cursorX+20,cursorY-160),(0,0,0),1)
-			cv2.putText(graph,str(round(wavelengthData[cursorX],2))+'nm',(cursorX+5,cursorY-165),font,0.4,(0,0,0),1, cv2.LINE_AA)
-
-		if recPixels == True:
-			#display the points
-			cv2.line(graph,(cursorX,cursorY-140),(cursorX,cursorY-180),(0,0,0),1)
-			cv2.line(graph,(cursorX-20,cursorY-160),(cursorX+20,cursorY-160),(0,0,0),1)
-			cv2.putText(graph,str(cursorX)+'px',(cursorX+5,cursorY-165),font,0.4,(0,0,0),1, cv2.LINE_AA)
-		else:
-			#also make sure the click array stays empty
-			clickArray = []
-
-		if clickArray:
-			for data in clickArray:
-				mouseX=data[0]
-				mouseY=data[1]
-				cv2.circle(graph,(mouseX,mouseY),5,(0,0,0),-1)
-				#we can display text :-) so we can work out wavelength from x-pos and display it ultimately
-				cv2.putText(graph,str(mouseX),(mouseX+5,mouseY),cv2.FONT_HERSHEY_SIMPLEX,0.4,(0,0,0))
-		
-
-	
-
-		#stack the images and display the spectrum	
-		spectrum_vertical = np.vstack((background_img,cropped, graph))
-		#dividing lines...
-		cv2.line(spectrum_vertical,(0,80),(frameWidth,80),(255,255,255),1)
-		cv2.line(spectrum_vertical,(0,160),(frameWidth,160),(255,255,255),1)
-		#print the messages
-		cv2.putText(spectrum_vertical,calmsg1,(490,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
-		cv2.putText(spectrum_vertical,calmsg3,(490,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
-		cv2.putText(spectrum_vertical,"Framerate: "+str(cfps),(490,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
-		cv2.putText(spectrum_vertical,saveMsg,(490,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
-		#Second column
-		cv2.putText(spectrum_vertical,holdmsg,(640,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
-		cv2.putText(spectrum_vertical,"Savgol Filter: "+str(savpoly),(640,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
-		cv2.putText(spectrum_vertical,"Label Peak Width: "+str(mindist),(640,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
-		cv2.putText(spectrum_vertical,"Label Threshold: "+str(thresh),(640,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
-		cv2.imshow(title1,spectrum_vertical)
-
-		if args.waterfall:
-			#stack the images and display the waterfall	
-			waterfall_vertical = np.vstack((background_img,cropped, waterfall))
-			#dividing lines...
-			cv2.line(waterfall_vertical,(0,80),(frameWidth,80),(255,255,255),1)
-			cv2.line(waterfall_vertical,(0,160),(frameWidth,160),(255,255,255),1)
-			#Draw this stuff over the top of the image!
-			#Display a graticule calibrated with cal data
-			textoffset = 12
-
-			#vertical lines every whole 50nm
-			for positiondata in fifties:
-				for i in range(162,480):
-					if i%20 == 0:
-						cv2.line(waterfall_vertical,(positiondata[0],i),(positiondata[0],i+1),(0,0,0),2)
-						cv2.line(waterfall_vertical,(positiondata[0],i),(positiondata[0],i+1),(255,255,255),1)
-				cv2.putText(waterfall_vertical,str(positiondata[1])+'nm',(positiondata[0]-textoffset,475),font,0.4,(0,0,0),2, cv2.LINE_AA)
-				cv2.putText(waterfall_vertical,str(positiondata[1])+'nm',(positiondata[0]-textoffset,475),font,0.4,(255,255,255),1, cv2.LINE_AA)
-
-			cv2.putText(waterfall_vertical,calmsg1,(490,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
-			cv2.putText(waterfall_vertical,calmsg2,(490,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
-			cv2.putText(waterfall_vertical,calmsg3,(490,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
-			cv2.putText(waterfall_vertical,saveMsg,(490,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
-
-			cv2.putText(waterfall_vertical,holdmsg,(640,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
-
-			cv2.imshow(title2,waterfall_vertical)
-
-
-		keyPress = cv2.waitKey(1)
-		if keyPress == ord('q'):
-			break
-		#https://stackoverflow.com/a/45564409
-		#handle window close
-		elif cv2.getWindowProperty(title1,cv2.WND_PROP_VISIBLE) < 1:
-			break
-		elif keyPress == 84:
-			#down arrow
-			vertical_crop_origin_offset -= 1
-		elif keyPress == 82:
-			#up arrow
-			vertical_crop_origin_offset += 1
-		elif keyPress == ord('h'):
-			holdpeaks = not holdpeaks
-		elif keyPress == ord("s"):
-			#package up the data!
-			graphdata = []
-			graphdata.append(wavelengthData)
-			graphdata.append(intensity)
-			if args.waterfall:
-				savedata = []
-				savedata.append(spectrum_vertical)
-				savedata.append(graphdata)
-				savedata.append(waterfall_vertical)
-			else:
-				savedata = []
-				savedata.append(spectrum_vertical)
-				savedata.append(graphdata)
-			saveMsg = snapshot(savedata)
-		elif keyPress == ord("c"):
-			calcomplete = writecal(clickArray)
-			if calcomplete:
-				#overwrite wavelength data
-				#Go grab the computed calibration data
-				caldata = readcal(frameWidth)
-				wavelengthData = caldata[0]
-				calmsg1 = caldata[1]
-				calmsg2 = caldata[2]
-				calmsg3 = caldata[3]
-				#overwrite graticule data
-				graticuleData = generateGraticule(wavelengthData)
-				tens = (graticuleData[0])
-				fifties = (graticuleData[1])
-		elif keyPress == ord("x"):
-			clickArray = []
-		elif keyPress == ord("m"):
-			recPixels = False #turn off recpixels!
-			measure = not measure
-		elif keyPress == ord("p"):
-			measure = False #turn off measure!
-			recPixels = not recPixels
-		elif keyPress == ord("o"):#sav up
-				savpoly+=1
-				if savpoly >=15:
-					savpoly=15
-		elif keyPress == ord("l"):#sav down
-				savpoly-=1
-				if savpoly <=0:
-					savpoly=0
-		elif keyPress == ord("i"):#Peak width up
-				mindist+=1
-				if mindist >=100:
-					mindist=100
-		elif keyPress == ord("k"):#Peak Width down
-				mindist-=1
-				if mindist <=0:
-					mindist=0
-		elif keyPress == ord("u"):#label thresh up
-				thresh+=1
-				if thresh >=100:
-					thresh=100
-		elif keyPress == ord("j"):#label thresh down
-				thresh-=1
-				if thresh <=0:
-					thresh=0
-	else: 
+	keyPress = cv2.waitKey(1)
+	if keyPress == ord('q'):
 		break
+	#https://stackoverflow.com/a/45564409
+	#handle window close
+	elif cv2.getWindowProperty(title1,cv2.WND_PROP_VISIBLE) < 1:
+		break
+	elif keyPress == 84:
+		#down arrow
+		vertical_crop_origin_offset -= 1
+	elif keyPress == 82:
+		#up arrow
+		vertical_crop_origin_offset += 1
+	elif keyPress == ord('h'):
+		holdpeaks = not holdpeaks
+	elif keyPress == ord("s"):
+		#package up the data!
+		graphdata = []
+		graphdata.append(wavelengthData)
+		graphdata.append(intensity)
+		if args.waterfall:
+			savedata = []
+			savedata.append(spectrum_vertical)
+			savedata.append(graphdata)
+			savedata.append(waterfall_vertical)
+		else:
+			savedata = []
+			savedata.append(spectrum_vertical)
+			savedata.append(graphdata)
+		saveMsg = snapshot(savedata)
+	elif keyPress == ord("c"):
+		calcomplete = writecal(clickArray)
+		if calcomplete:
+			#overwrite wavelength data
+			#Go grab the computed calibration data
+			caldata = readcal(frameWidth)
+			wavelengthData = caldata[0]
+			calmsg1 = caldata[1]
+			calmsg2 = caldata[2]
+			calmsg3 = caldata[3]
+			#overwrite graticule data
+			graticuleData = generateGraticule(wavelengthData)
+			tens = (graticuleData[0])
+			fifties = (graticuleData[1])
+	elif keyPress == ord("x"):
+		clickArray = []
+	elif keyPress == ord("m"):
+		recPixels = False #turn off recpixels!
+		measure = not measure
+	elif keyPress == ord("p"):
+		measure = False #turn off measure!
+		recPixels = not recPixels
+	elif keyPress == ord("o"):#sav up
+			savpoly+=1
+			if savpoly >=15:
+				savpoly=15
+	elif keyPress == ord("l"):#sav down
+			savpoly-=1
+			if savpoly <=0:
+				savpoly=0
+	elif keyPress == ord("i"):#Peak width up
+			mindist+=1
+			if mindist >=100:
+				mindist=100
+	elif keyPress == ord("k"):#Peak Width down
+			mindist-=1
+			if mindist <=0:
+				mindist=0
+	elif keyPress == ord("u"):#label thresh up
+			thresh+=1
+			if thresh >=100:
+				thresh=100
+	elif keyPress == ord("j"):#label thresh down
+			thresh-=1
+			if thresh <=0:
+				thresh=0
 
  
 #Everything done, release the vid
