@@ -43,10 +43,8 @@ args = cli.args()
 
 if args.fullscreen:
 	print("Fullscreen Spectrometer enabled")
-	dispFullscreen = True
 if args.waterfall:
 	print("Waterfall display enabled")
-	dispWaterfall = True
 	
 if args.device:
 	dev = args.device
@@ -79,13 +77,13 @@ title1 = 'PySpectrometer 2 - Spectrograph'
 title2 = 'PySpectrometer 2 - Waterfall'
 stackHeight = 320+80+80 #height of the displayed CV window (graph+preview+messages)
 
-if dispWaterfall == True:
+if args.waterfall:
 	#watefall first so spectrum is on top
 	cv2.namedWindow(title2,cv2.WINDOW_GUI_NORMAL)
 	cv2.resizeWindow(title2,frameWidth,stackHeight)
 	cv2.moveWindow(title2,200,200);
 
-if dispFullscreen == True:
+if args.fullscreen:
 	cv2.namedWindow(title1,cv2.WND_PROP_FULLSCREEN)
 	cv2.setWindowProperty(title1,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
 else:
@@ -153,7 +151,7 @@ def snapshot(savedata):
 	timenow = time.strftime("%H:%M:%S")
 	imdata1 = savedata[0]
 	graphdata = savedata[1]
-	if dispWaterfall == True:
+	if args.waterfall:
 		imdata2 = savedata[2]
 		cv2.imwrite("waterfall-" + now + ".png",imdata2)
 	cv2.imwrite("spectrum-" + now + ".png",imdata1)
@@ -232,7 +230,7 @@ while(cap.isOpened()):
 			else:
 				intensity[i] = data
 
-		if dispWaterfall == True:
+		if args.waterfall:
 			#waterfall....
 			#data is smoothed at this point!!!!!!
 			#create an empty array for the data
@@ -339,7 +337,7 @@ while(cap.isOpened()):
 		cv2.putText(spectrum_vertical,"Label Threshold: "+str(thresh),(640,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
 		cv2.imshow(title1,spectrum_vertical)
 
-		if dispWaterfall == True:
+		if args.waterfall:
 			#stack the images and display the waterfall	
 			waterfall_vertical = np.vstack((messages,cropped, waterfall))
 			#dividing lines...
@@ -381,7 +379,7 @@ while(cap.isOpened()):
 			graphdata = []
 			graphdata.append(wavelengthData)
 			graphdata.append(intensity)
-			if dispWaterfall == True:
+			if args.waterfall:
 				savedata = []
 				savedata.append(spectrum_vertical)
 				savedata.append(graphdata)
