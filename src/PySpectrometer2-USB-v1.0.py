@@ -195,7 +195,7 @@ while(cap.isOpened()):
 		decoded_data = base64.b64decode(background)
 		np_data = np.frombuffer(decoded_data,np.uint8)
 		img = cv2.imdecode(np_data,3)
-		messages = img
+		background_img = img
 
 		#blank image for Graph
 		graph = np.zeros([320,frameWidth,3],dtype=np.uint8)
@@ -328,7 +328,7 @@ while(cap.isOpened()):
 	
 
 		#stack the images and display the spectrum	
-		spectrum_vertical = np.vstack((messages,cropped, graph))
+		spectrum_vertical = np.vstack((background_img,cropped, graph))
 		#dividing lines...
 		cv2.line(spectrum_vertical,(0,80),(frameWidth,80),(255,255,255),1)
 		cv2.line(spectrum_vertical,(0,160),(frameWidth,160),(255,255,255),1)
@@ -346,7 +346,7 @@ while(cap.isOpened()):
 
 		if args.waterfall:
 			#stack the images and display the waterfall	
-			waterfall_vertical = np.vstack((messages,cropped, waterfall))
+			waterfall_vertical = np.vstack((background_img,cropped, waterfall))
 			#dividing lines...
 			cv2.line(waterfall_vertical,(0,80),(frameWidth,80),(255,255,255),1)
 			cv2.line(waterfall_vertical,(0,160),(frameWidth,160),(255,255,255),1)
