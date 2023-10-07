@@ -39,11 +39,14 @@ from .exceptions import CalibrationError
 from .spectrometer import Spectrometer
 from .interactivity import SpectrometerInteractivity
 from .specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes
-from . import cli
-from . import ui
+from . import cli,record,ui,video
 
 args = cli.args()
-spectrometer = Spectrometer()
+
+capture = video.Capture.initialize(args.device,args.width,args.height,args.fps)
+calibration = record.Calibration(capture.width)
+print(capture)
+spectrometer = Spectrometer(calibration)
 si = SpectrometerInteractivity(spectrometer)
 
 def main(s: Spectrometer):
@@ -52,15 +55,12 @@ def main(s: Spectrometer):
     if args.waterfall:
         print("Waterfall display enabled")
 
-
-    s.start_video_capture(args.device,args.width,args.height,args.fps)
-    s.intensity = [0] * s.capture.width #array for intensity data...full of zeroes
-
+    s.intensity = [0] * capture.width #array for intensity data...full of zeroes
 
     if args.waterfall:
         #waterfall first so spectrum is on top
         cv2.namedWindow(s.waterfall_title,cv2.WINDOW_GUI_NORMAL)
-        cv2.resizeWindow(s.waterfall_title,s.capture.width,s.stackHeight)
+        cv2.resizeWindow(s.waterfall_title,capture.width,s.stackHeight)
         cv2.moveWindow(s.waterfall_title,200,200);
 
     if args.fullscreen:
@@ -68,7 +68,7 @@ def main(s: Spectrometer):
         cv2.setWindowProperty(s.spectrograph_title,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
     else:
         cv2.namedWindow(s.spectrograph_title,cv2.WINDOW_GUI_NORMAL)
-        cv2.resizeWindow(s.spectrograph_title,s.capture.width,s.stackHeight)
+        cv2.resizeWindow(s.spectrograph_title,capture.width,s.stackHeight)
         cv2.moveWindow(s.spectrograph_title,0,0);
 
 
@@ -85,12 +85,12 @@ def main(s: Spectrometer):
     saveMsg = "No data saved"
 
     #blank image for Waterfall
-    waterfall = np.zeros([s.graphHeight,s.capture.width,3],dtype=np.uint8)
+    waterfall = np.zeros([s.graphHeight,capture.width,3],dtype=np.uint8)
     waterfall.fill(0) #fill black
 
-    while(s.capture.isOpened()):
+    while(capture.isOpened()):
         # Capture frame-by-frame
-        success, frame = s.capture.read()
+        success, frame = capture.read()
         if not success:
             break
 
@@ -99,23 +99,23 @@ def main(s: Spectrometer):
             FLIP_ABOUT_Y_AXIS = 1
             frame = cv2.flip(frame,flipCode=FLIP_ABOUT_Y_AXIS)
 
-        y=int((s.capture.height/2)+s.vertical_crop_origin_offset) #origin of the vertical crop
+        y=int((capture.height/2)+s.vertical_crop_origin_offset) #origin of the vertical crop
         #y=200  #origin of the vert crop
         x=0     #origin of the horiz crop
         h=s.previewHeight   #height of the crop
-        w=s.capture.width #width of the crop
+        w=capture.width #width of the crop
         cropped = frame[y:y+h, x:x+w]
         bwimage = cv2.cvtColor(cropped,cv2.COLOR_BGR2GRAY)
         rows,cols = bwimage.shape
         halfway =int(rows/2)
         #show our line on the original image
         #now a 4px wide region
-        cv2.line(cropped,(0,halfway-2),(s.capture.width,halfway-2),(255,255,255),1)
-        cv2.line(cropped,(0,halfway+2),(s.capture.width,halfway+2),(255,255,255),1)
+        cv2.line(cropped,(0,halfway-2),(capture.width,halfway-2),(255,255,255),1)
+        cv2.line(cropped,(0,halfway+2),(capture.width,halfway+2),(255,255,255),1)
 
 
         #blank image for Graph
-        graph = np.zeros([s.graphHeight,s.capture.width,3],dtype=np.uint8)
+        graph = np.zeros([s.graphHeight,capture.width,3],dtype=np.uint8)
         graph.fill(255) #fill white
 
         #Display a graticule calibrated with cal data
@@ -133,7 +133,7 @@ def main(s: Spectrometer):
         for i in range (s.graphHeight):
             if i>=64:
                 if i%64==0: #suppress the first line then draw the rest...
-                    cv2.line(graph,(0,i),(s.capture.width,i),(100,100,100),1)
+                    cv2.line(graph,(0,i),(capture.width,i),(100,100,100),1)
 
         #Now process the intensity data and display it
         #intensity = []
@@ -158,7 +158,7 @@ def main(s: Spectrometer):
             #waterfall....
             #data is smoothed at this point!!!!!!
             #create an empty array for the data
-            wdata = np.zeros([1,s.capture.width,3],dtype=np.uint8)
+            wdata = np.zeros([1,capture.width,3],dtype=np.uint8)
             index=0
             for i in s.intensity:
                 rgb = wavelength_to_rgb(round(s.calbration.wavelengthData[index]))#derive the color from the wavelenthData array
@@ -221,7 +221,7 @@ def main(s: Spectrometer):
         s.spectrum_vertical = np.vstack((ui.background,cropped, graph))
 
         s.overlay = ui.Overlay(s.spectrum_vertical,
-                            s.capture.width,
+                            capture.width,
                             message_height=s.messageHeight,
                             preview_height=s.previewHeight)
 
@@ -232,7 +232,7 @@ def main(s: Spectrometer):
         calmsg1, calmsg3 = s.calibration.status()
         s.overlay.label('cal1',calmsg1)
         s.overlay.label('cal3',calmsg3)
-        s.overlay.label('fps', f"Framerate: {s.capture.fps}")
+        s.overlay.label('fps', f"Framerate: {capture.fps}")
         s.overlay.label('save', saveMsg)
         s.overlay.label('hold', holdmsg)
         s.overlay.label('savpoly', f"Savgol Filter: {s.savpoly}")
@@ -253,8 +253,8 @@ def main(s: Spectrometer):
             #stack the images and display the waterfall
             s.waterfall_vertical = np.vstack((ui.background,cropped, waterfall))
             #dividing lines...
-            cv2.line(s.waterfall_vertical,(0,80),(s.capture.width,80),(255,255,255),1)
-            cv2.line(s.waterfall_vertical,(0,160),(s.capture.width,160),(255,255,255),1)
+            cv2.line(s.waterfall_vertical,(0,80),(capture.width,80),(255,255,255),1)
+            cv2.line(s.waterfall_vertical,(0,160),(capture.width,160),(255,255,255),1)
             #Draw this stuff over the top of the image!
             #Display a graticule calibrated with cal data
             textoffset = 12
@@ -288,7 +288,7 @@ def main(s: Spectrometer):
             break
 
     #Everything done, release the vid
-    s.capture.release()
+    capture.release()
 
     cv2.destroyAllWindows()
 

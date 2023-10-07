@@ -8,6 +8,8 @@ from dataclasses import dataclass
 
 @dataclass
 class Spectrometer:
+    calibration: Calibration = None
+
     #window
     graphHeight: int = 320
     previewHeight: int = 80
@@ -22,9 +24,7 @@ class Spectrometer:
     showWaterfall: bool = False
 
     #calibration
-    calibration: Calibration = None
     vertical_crop_origin_offset: int = 0
-    graticuleData: list = None
 
     #settings for peak detect
     savpoly: int = 7 #savgol filter polynomial max val 15
@@ -33,13 +33,7 @@ class Spectrometer:
 
     def __post_init__(self):
         self.intensity = []
-        self.capture = None
-
-    def start_video_capture(self,device,width,height,fps):
-        self.capture = video.Capture.initialize(device,width,height,fps)
-        self.calibration = Calibration(self.capture.width)
         self.graticuleData = generateGraticule(self.calibration.wavelengthData)
-        print(self.capture)
 
     @property
     def stackHeight(self):
