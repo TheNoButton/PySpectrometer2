@@ -7,7 +7,11 @@ https://github.com/leswright1977
 
 This project is a follow on from: https://github.com/leswright1977/PySpectrometer 
 
-This is a more advanced, but more flexible version of the original program. Tk Has been dropped as the GUI to allow fullscreen mode on Raspberry Pi systems and the iterface is designed to fit 800*480 screens, which seem to be a common resolutin for RPi LCD's, paving the way for the creation of a stand alone benchtop instrument.
+This is a more advanced, but more flexible version of the original program. Tk
+Has been dropped as the GUI to allow fullscreen mode on Raspberry Pi systems and
+the iterface is designed to fit 800*480 screens, which seem to be a common
+resolutin for RPi LCD's, paving the way for the creation of a stand alone
+benchtop instrument.
 
 Whats new:
 Higher resolution (800px wide graph)
@@ -19,7 +23,8 @@ Labelled measurement cursors
 Optional waterfall display for recording spectra changes over time.
 Key Bindings for all operations
 
-All old features have been kept, including peak hold, peak detect, Savitsky Golay filter, and the ability to save graphs as png and data as CSV.
+All old features have been kept, including peak hold, peak detect, Savitsky
+Golay filter, and the ability to save graphs as png and data as CSV.
 
 For instructions please consult the readme!
 
