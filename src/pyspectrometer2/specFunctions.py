@@ -237,48 +237,14 @@ def peakIndexes(y, thres=0.3, min_dist=1, thres_abs=False):
 
     return peaks    
 
-
-def generateGraticule(wavelengthData):
-    low = wavelengthData[0] #get lowet number in list
-    high = wavelengthData[len(wavelengthData)-1] #get highest number
-    #round and int these numbers so we have our range of numbers to look at
-    #give a margin of 10 at each end for good measure
-    low = int(round(low))-10
-    high = int(round(high))+10
-    #print('...')
-    #print(low)
-    #print(high)
-    #print('...')
-    returndata = []
-    #find positions of every whole 10nm
-    tens = []
-    for i in range(low,high):
-        if (i%10==0):
-            #position contains pixelnumber and wavelength
-            position = min(enumerate(wavelengthData), key=lambda x: abs(i - x[1]))
-            #If the difference between the target and result is <9 show the line
-            #(otherwise depending on the scale we get dozens of number either end that are close to the target)
-            if abs(i-position[1]) <1: 
-                #print(i)
-                #print(position)
-                tens.append(position[0])
-    returndata.append(tens)
-    fifties = []
-    for i in range(low,high):
-        if (i%50==0):
-            #position contains pixelnumber and wavelength
-            position = min(enumerate(wavelengthData), key=lambda x: abs(i - x[1]))
-            #If the difference between the target and result is <1 show the line
-            #(otherwise depending on the scale we get dozens of number either end that are close to the target)
-            if abs(i-position[1]) <1: 
-                labelpos = position[0]
-                labeltxt = int(round(position[1]))
-                labeldata = [labelpos,labeltxt]
-                fifties.append(labeldata)
-    returndata.append(fifties)
-    return returndata
-
-
+def nm_labels(wavelengths,step):
+    last_labeled = round(wavelengths[0]/step) * step
+    for x,nm in enumerate(wavelengths):
+        if nm >= last_labeled + step:
+            nm_floor = round(nm)/step*step
+            label = nm_floor
+            yield (label,x)
+            last_labeled = nm_floor
 
 
 

@@ -5,7 +5,6 @@ from .record import Calibration
 from . import record
 from .ui import Overlay
 from .video import Capture
-from .specFunctions import generateGraticule
 
 class SpectrometerInteractivity:
 
@@ -40,8 +39,6 @@ class SpectrometerInteractivity:
                 #overwrite wavelength data
                 #Go grab the computed calibration data
                 self.app.s.calibration = Calibration(self.app.capture.width)
-                #overwrite graticule data
-                self.app.s.graticuleData = generateGraticule(self.app.s.calibration.wavelengthData)
                 self.app.overlay.clear_claibration_clicks()
         elif keyPress == ord("x"):
             self.app.overlay.clear_claibration_clicks()

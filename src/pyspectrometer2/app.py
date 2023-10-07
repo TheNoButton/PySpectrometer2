@@ -101,6 +101,9 @@ class App:
 
 
     def update_spectrum_window(self, frame):
+        hline_color=(100,100,100)
+        vminor_color=(200,200,200)
+        vmajor_color=(0,0,0)
         #blank image for Graph
         graph = np.zeros([self.graphHeight,self.capture.width,3],dtype=np.uint8)
         graph.fill(255) #fill white
@@ -108,19 +111,20 @@ class App:
         #Display a graticule calibrated with cal data
         textoffset = 12
         #vertial lines every whole 10nm
-        for position in self.s.tens:
-            cv2.line(graph,(position,15),(position,self.graphHeight),(200,200,200),1)
+        for label,x in self.s.tens:
+            cv2.line(graph,(x,15),(x,self.graphHeight),vminor_color,1)
 
         #vertical lines every whole 50nm
-        for positiondata in self.s.fifties:
-            cv2.line(graph,(positiondata[0],15),(positiondata[0],self.graphHeight),(0,0,0),1)
-            cv2.putText(graph,str(positiondata[1])+'nm',(positiondata[0]-textoffset,12),self.font,0.4,(0,0,0),1, cv2.LINE_AA)
+        for label,x in self.s.fifties:
+            cv2.line(graph,(x,15),(x,self.graphHeight),vmajor_color,1)
+            cv2.putText(graph,f'{label:n}nm',(x-textoffset,12),self.font,0.4,(0,0,0),1, cv2.LINE_AA)
 
         #horizontal lines
-        for i in range (self.graphHeight):
-            if i>=64:
-                if i%64==0: #suppress the first line then draw the rest...
-                    cv2.line(graph,(0,i),(self.capture.width,i),(100,100,100),1)
+        start = 64
+        stop=self.graphHeight
+        step=64
+        for y in range(start, stop, step):
+            cv2.line(graph,(0,y),(self.capture.width,y),hline_color,1)
 
         #Now process the intensity data and display it
         #intensity = []
@@ -143,14 +147,14 @@ class App:
 
         #now draw the intensity data....
         index=0
-        for i in self.s.intensity:
+        for y in self.s.intensity:
             rgb = wavelength_to_rgb(round(self.s.calibration.wavelengthData[index]))#derive the color from the wvalenthData array
             r = rgb[0]
             g = rgb[1]
             b = rgb[2]
             #or some reason origin is top left.
-            cv2.line(graph, (index,self.graphHeight), (index,self.graphHeight-i), (b,g,r), 1)
-            cv2.line(graph, (index,319-i), (index,self.graphHeight-i), (0,0,0), 1,cv2.LINE_AA)
+            cv2.line(graph, (index,self.graphHeight), (index,self.graphHeight-y), (b,g,r), 1)
+            cv2.line(graph, (index,319-y), (index,self.graphHeight-y), (0,0,0), 1,cv2.LINE_AA)
             index+=1
 
 
@@ -159,15 +163,15 @@ class App:
         thresh = int(self.s.thresh) #make sure the data is int.
         indexes = peakIndexes(self.s.intensity, thres=thresh/max(self.s.intensity), min_dist=self.s.mindist)
         #print(indexes)
-        for i in indexes:
-            height = self.s.intensity[i]
+        for y in indexes:
+            height = self.s.intensity[y]
             height = 310-height
-            wavelength = round(self.s.calibration.wavelengthData[i],1)
-            cv2.rectangle(graph,((i-textoffset)-2,height),((i-textoffset)+60,height-15),(0,255,255),-1)
-            cv2.rectangle(graph,((i-textoffset)-2,height),((i-textoffset)+60,height-15),(0,0,0),1)
-            cv2.putText(graph,str(wavelength)+'nm',(i-textoffset,height-3),self.font,0.4,(0,0,0),1, cv2.LINE_AA)
+            wavelength = round(self.s.calibration.wavelengthData[y],1)
+            cv2.rectangle(graph,((y-textoffset)-2,height),((y-textoffset)+60,height-15),(0,255,255),-1)
+            cv2.rectangle(graph,((y-textoffset)-2,height),((y-textoffset)+60,height-15),(0,0,0),1)
+            cv2.putText(graph,str(wavelength)+'nm',(y-textoffset,height-3),self.font,0.4,(0,0,0),1, cv2.LINE_AA)
             #flagpoles
-            cv2.line(graph,(i,height),(i,height+10),(0,0,0),1)
+            cv2.line(graph,(y,height),(y,height+10),(0,0,0),1)
 
         self.s.spectrum_vertical = np.vstack((ui.Overlay.background(self.capture.width),cropped, graph))
 

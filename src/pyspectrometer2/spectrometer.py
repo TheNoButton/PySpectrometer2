@@ -5,7 +5,7 @@ import numpy as np
 
 from . import video
 from .record import Calibration
-from .specFunctions import generateGraticule
+from .specFunctions import nm_labels
 
 @dataclass
 class Spectrometer:
@@ -19,16 +19,14 @@ class Spectrometer:
 
     def __post_init__(self):
         self.intensity = [0] * self.calibration.width #array for intensity data...full of zeroes
-        self.graticuleData = generateGraticule(self.calibration.wavelengthData)
-
 
     @property
     def tens(self):
-        return self.graticuleData[0]
+        return nm_labels(self.calibration.wavelengthData,step=10)
 
     @property
     def fifties(self):
-        return self.graticuleData[1]
+        return nm_labels(self.calibration.wavelengthData,step=50)
     
     def sample_intensity(self,preview,sample_count=3):
         crop_center = len(preview) // 2
