@@ -1,0 +1,5 @@
+venv/
+caldata.txt
+__pycache__/
+[Ss]pectrum-*.csv
+[Ss]pectrum-*.png
