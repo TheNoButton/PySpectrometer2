@@ -146,13 +146,17 @@ There is nothing to stop you building a spectrometer head with a couple of razor
 
 ## Starting the program
 
-First, clone this repo!
+```
+#clone this repo
+git clone https://....
 
-In /src you will find:
+#install the package
+cd PySpectrometer2
+pip install .
 
-* PySpectrometer2-Picam2-v1.0.py  (PySpectrometer for Raspberry Pi)
-* PySpectrometer2-USB-v1.0.py     (USB version of this program (This is for USB Cameras See end of Readme)).
-* specFunctions.py                (A library of functions including: Wavelength to RGB, SavGol filter from Scipy, Peak detect from peakutils, readcal and writecal.
+#run the console script
+pyspectrometer2 --help
+```
 
 ## Dependencies
 

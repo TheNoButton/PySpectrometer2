@@ -4,3 +4,6 @@ version = "0.0.1"
 dependencies = [
     "opencv-python",
 ]
+
+[project.scripts]
+pyspectrometer2 = "pyspectrometer2.__main__:main"
