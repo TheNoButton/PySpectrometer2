@@ -376,6 +376,10 @@ while(cap.isOpened()):
 		keyPress = cv2.waitKey(1)
 		if keyPress == ord('q'):
 			break
+		#https://stackoverflow.com/a/45564409
+		#handle window close
+		elif cv2.getWindowProperty(title1,cv2.WND_PROP_VISIBLE) < 1:
+			break
 		elif keyPress == 84:
 			#down arrow
 			vertical_crop_origin_offset -= 1
