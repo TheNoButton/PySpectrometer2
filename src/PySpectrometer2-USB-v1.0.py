@@ -54,23 +54,23 @@ preferredFrameHeight = 600
 capture = video.Capture.initialize(args.device,preferredFrameWidth,preferredFrameHeight,args.fps)
 print(capture)
 
-title1 = 'PySpectrometer 2 - Spectrograph'
-title2 = 'PySpectrometer 2 - Waterfall'
+spectrograph_title = 'PySpectrometer 2 - Spectrograph'
+waterfall_title = 'PySpectrometer 2 - Waterfall'
 stackHeight = 320+80+80 #height of the displayed CV window (graph+preview+messages)
 
 if args.waterfall:
-	#watefall first so spectrum is on top
-	cv2.namedWindow(title2,cv2.WINDOW_GUI_NORMAL)
-	cv2.resizeWindow(title2,capture.width,stackHeight)
-	cv2.moveWindow(title2,200,200);
+	#waterfall first so spectrum is on top
+	cv2.namedWindow(waterfall_title,cv2.WINDOW_GUI_NORMAL)
+	cv2.resizeWindow(waterfall_title,capture.width,stackHeight)
+	cv2.moveWindow(waterfall_title,200,200);
 
 if args.fullscreen:
-	cv2.namedWindow(title1,cv2.WND_PROP_FULLSCREEN)
-	cv2.setWindowProperty(title1,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
+	cv2.namedWindow(spectrograph_title,cv2.WND_PROP_FULLSCREEN)
+	cv2.setWindowProperty(spectrograph_title,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
 else:
-	cv2.namedWindow(title1,cv2.WINDOW_GUI_NORMAL)
-	cv2.resizeWindow(title1,capture.width,stackHeight)
-	cv2.moveWindow(title1,0,0);
+	cv2.namedWindow(spectrograph_title,cv2.WINDOW_GUI_NORMAL)
+	cv2.resizeWindow(spectrograph_title,capture.width,stackHeight)
+	cv2.moveWindow(spectrograph_title,0,0);
 
 #settings for peak detect
 savpoly = 7 #savgol filter polynomial max val 15
@@ -95,7 +95,7 @@ def handle_mouse(event,x,y,flags,param):
 		mouseY = y-mouseYOffset
 		clickArray.append([mouseX,mouseY])
 #listen for click on plot window
-cv2.setMouseCallback(title1,handle_mouse)
+cv2.setMouseCallback(spectrograph_title,handle_mouse)
 
 
 font=cv2.FONT_HERSHEY_SIMPLEX
@@ -323,7 +323,7 @@ while(capture.isOpened()):
 	cv2.putText(spectrum_vertical,"Savgol Filter: "+str(savpoly),(640,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
 	cv2.putText(spectrum_vertical,"Label Peak Width: "+str(mindist),(640,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
 	cv2.putText(spectrum_vertical,"Label Threshold: "+str(thresh),(640,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.imshow(title1,spectrum_vertical)
+	cv2.imshow(spectrograph_title,spectrum_vertical)
 
 	if args.waterfall:
 		#stack the images and display the waterfall	
@@ -351,7 +351,7 @@ while(capture.isOpened()):
 
 		cv2.putText(waterfall_vertical,holdmsg,(640,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
 
-		cv2.imshow(title2,waterfall_vertical)
+		cv2.imshow(waterfall_title,waterfall_vertical)
 
 
 	keyPress = cv2.waitKey(1)
@@ -359,7 +359,7 @@ while(capture.isOpened()):
 		break
 	#https://stackoverflow.com/a/45564409
 	#handle window close
-	elif cv2.getWindowProperty(title1,cv2.WND_PROP_VISIBLE) < 1:
+	elif cv2.getWindowProperty(spectrograph_title,cv2.WND_PROP_VISIBLE) < 1:
 		break
 	elif keyPress == 84:
 		#down arrow
