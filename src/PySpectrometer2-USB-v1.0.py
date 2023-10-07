@@ -39,6 +39,7 @@ import numpy as np
 
 import cli
 import video
+import ui
 from specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes,readcal,writecal,background,generateGraticule
 
 args = cli.args()
@@ -307,25 +308,24 @@ while(capture.isOpened()):
 			cv2.circle(graph,(mouseX,mouseY),5,(0,0,0),-1)
 			#we can display text :-) so we can work out wavelength from x-pos and display it ultimately
 			cv2.putText(graph,str(mouseX),(mouseX+5,mouseY),cv2.FONT_HERSHEY_SIMPLEX,0.4,(0,0,0))
-	
-
-
 
 	#stack the images and display the spectrum	
 	spectrum_vertical = np.vstack((background_img,cropped, graph))
-	#dividing lines...
-	cv2.line(spectrum_vertical,(0,80),(capture.width,80),(255,255,255),1)
-	cv2.line(spectrum_vertical,(0,160),(capture.width,160),(255,255,255),1)
-	#print the messages
-	cv2.putText(spectrum_vertical,calmsg1,(490,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,calmsg3,(490,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,"Framerate: "+str(capture.fps),(490,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,saveMsg,(490,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	#Second column
-	cv2.putText(spectrum_vertical,holdmsg,(640,15),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,"Savgol Filter: "+str(savpoly),(640,33),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,"Label Peak Width: "+str(mindist),(640,51),font,0.4,(0,255,255),1, cv2.LINE_AA)
-	cv2.putText(spectrum_vertical,"Label Threshold: "+str(thresh),(640,69),font,0.4,(0,255,255),1, cv2.LINE_AA)
+
+	overlay = ui.Overlay(spectrum_vertical,
+						 capture.width,
+						 message_height=messageHeight,
+						 preview_height=previewHeight)
+	overlay.draw_divisions()
+	overlay.label('cal1',calmsg1)
+	overlay.label('cal3',calmsg3)
+	overlay.label('fps', f"Framerate: {capture.fps}")
+	overlay.label('save', saveMsg)
+	overlay.label('hold', holdmsg)
+	overlay.label('savpoly', f"Savgol Filter: {savpoly}")
+	overlay.label('label_width', f"Label Peak Width: {mindist}")
+	overlay.label('label_threshold', f"Label Threshold: {thresh}")
+
 	cv2.imshow(spectrograph_title,spectrum_vertical)
 
 	if args.waterfall:
