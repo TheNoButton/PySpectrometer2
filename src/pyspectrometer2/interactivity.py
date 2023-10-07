@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from warnings import warn
 
 from .record import Calibration
 from . import record
@@ -15,12 +16,15 @@ class SpectrometerInteractivity:
          self.capture = capture
 
     def handle_keypress(self,keyPress,args):
+        if keyPress == -1:
+             return
+
         if keyPress == 84:
             #down arrow
-            self.capture.crop_offset -= 1
+            self.capture.adjust_crop_offset(-1)
         elif keyPress == 82:
             #up arrow
-            self.capture.crop_offset += 1
+            self.capture.adjust_crop_offset(1)
         elif keyPress == ord('h'):
             self.s.holdpeaks = not self.s.holdpeaks
         elif keyPress == ord("s"):
@@ -81,3 +85,5 @@ class SpectrometerInteractivity:
                 self.s.thresh-=1
                 if self.s.thresh <=0:
                     self.s.thresh=0
+        else:
+             warn(f"Unknown keypress: {keyPress}")

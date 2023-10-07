@@ -1,10 +1,11 @@
-from pyspectrometer2 import video
-from pyspectrometer2.record import Calibration
-from pyspectrometer2.specFunctions import generateGraticule
-
 
 from dataclasses import dataclass
 
+import numpy as np
+
+from . import video
+from .record import Calibration
+from .specFunctions import generateGraticule
 
 @dataclass
 class Spectrometer:
@@ -47,3 +48,15 @@ class Spectrometer:
     @property
     def fifties(self):
         return self.graticuleData[1]
+    
+    def sample_intensity(self,preview,sample_count=3):
+        crop_center = len(preview) // 2
+        self.sample_start = max(0,crop_center - sample_count // 2)
+        self.sample_stop = min(len(preview), self.sample_start + sample_count)
+        sample = preview[self.sample_start:self.sample_stop]
+        intensities = [sum(col)//len(col) for col in zip(*sample)]
+        if self.holdpeaks:
+           self.intensity = [max(previous,current) for previous,current in zip(self.intensity,intensities)]
+        else:
+           self.intensity = intensities
+        self.intensity = np.uint8(self.intensity)

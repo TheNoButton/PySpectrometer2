@@ -125,16 +125,7 @@ def main(s: Spectrometer):
         cropped = capture.cropped_preview(frame)
         bwimage = cv2.cvtColor(cropped,cv2.COLOR_BGR2GRAY)
         sample_count = 3
-        crop_center = len(cropped) // 2
-        sample_start = max(0,crop_center - sample_count // 2)
-        sample_stop = min(len(cropped),sample_start + sample_count)
-        sample = bwimage[sample_start:sample_stop]
-        intensities = [sum(col)//len(col) for col in zip(*sample)]
-        if s.holdpeaks:
-           s.intensity = [max(previous,current) for previous,current in zip(s.intensity,intensities)]
-        else:
-           s.intensity = intensities
-        s.intensity = np.uint8(s.intensity)
+        s.sample_intensity(bwimage, sample_count=sample_count)
 
         if args.waterfall:
             #waterfall....
@@ -211,7 +202,7 @@ def main(s: Spectrometer):
         cv2.setMouseCallback(s.spectrograph_title,overlay.handle_mouse)
 
         overlay.draw_divisions()
-        overlay.draw_sample_boundry(sample_start,sample_stop)
+        overlay.draw_sample_boundry(s.sample_start,s.sample_stop)
         calmsg1, calmsg3 = s.calibration.status()
         overlay.label('cal1',calmsg1)
         overlay.label('cal3',calmsg3)
@@ -223,12 +214,12 @@ def main(s: Spectrometer):
         overlay.label('label_threshold', f"Label Threshold: {thresh}")
 
         if s.measure:
-            s.overlay.show_cursor()
-            s.overlay.show_measure(wavelengthData=s.calibration.wavelengthData)
+            overlay.show_cursor()
+            overlay.show_measure(wavelengthData=s.calibration.wavelengthData)
         elif s.recPixels:
-            s.overlay.show_cursor()
-            s.overlay.show_measure()
-            s.overlay.show_calibration_choices()
+            overlay.show_cursor()
+            overlay.show_measure()
+            overlay.show_calibration_choices()
 
         cv2.imshow(s.spectrograph_title,s.spectrum_vertical)
 

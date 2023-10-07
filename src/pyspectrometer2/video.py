@@ -19,6 +19,7 @@ class Capture(cv2.VideoCapture):
     def fps(self):
         return int(self.get(cv2.CAP_PROP_FPS))
 
+
     @classmethod
     def initialize(cls, device="0", width=800, height=600, fps=30):
         #init video
@@ -28,14 +29,27 @@ class Capture(cv2.VideoCapture):
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT,height)
         cap.set(cv2.CAP_PROP_FPS,fps)
         return cap
+
+    @property
+    def crop_start(self):
+        return self.height//2 + self.crop_offset
     
     def cropped_preview(self, frame):
-        y = self.height//2 + self.crop_offset #origin of the vertical crop
+        y = self.crop_start
         x = 0     #origin of the horiz crop
         h=self.preview_height   #height of the crop
         w=self.width #width of the crop
         cropped = frame[y:y+h, x:x+w]
         return cropped
+
+    def adjust_crop_offset(self, delta):
+        candidate = self.crop_start + delta
+        if candidate < 0:
+            return
+        if candidate + self.preview_height > self.height:
+            return
+        self.crop_offset += delta
+
 
 
     def __str__(self):
