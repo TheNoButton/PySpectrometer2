@@ -31,13 +31,14 @@ For instructions please consult the readme!
 '''
 
 
-import cv2
+import base64
 import time
+
+import cv2
 import numpy as np
 
 import cli
 from specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes,readcal,writecal,background,generateGraticule
-import base64
 
 args = cli.args()
 
