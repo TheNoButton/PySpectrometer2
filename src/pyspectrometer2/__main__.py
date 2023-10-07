@@ -31,14 +31,15 @@ For instructions please consult the readme!
 '''
 
 
-import time
 
 import cv2
 import numpy as np
 
+
 from . import cli
 from . import video
 from . import ui
+from .record import snapshot
 from .specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes,readcal,writecal,generateGraticule
 
 args = cli.args()
@@ -129,25 +130,6 @@ calmsg3 = caldata[3]
 graticuleData = generateGraticule(wavelengthData)
 tens = (graticuleData[0])
 fifties = (graticuleData[1])
-
-def snapshot(savedata):
-	now = time.strftime("%Y%m%d--%H%M%S")
-	timenow = time.strftime("%H:%M:%S")
-	imdata1 = savedata[0]
-	graphdata = savedata[1]
-	if args.waterfall:
-		imdata2 = savedata[2]
-		cv2.imwrite("waterfall-" + now + ".png",imdata2)
-	cv2.imwrite("spectrum-" + now + ".png",imdata1)
-	#print(graphdata[0]) #wavelengths
-	#print(graphdata[1]) #intensities
-	f = open("Spectrum-"+now+'.csv','w')
-	f.write('Wavelength,Intensity\r\n')
-	for x in zip(graphdata[0],graphdata[1]):
-		f.write(str(x[0])+','+str(x[1])+'\r\n')
-	f.close()
-	message = "Last Save: "+timenow
-	return(message)
 
 vertical_crop_origin_offset = 0
 while(capture.isOpened()):
@@ -380,7 +362,7 @@ while(capture.isOpened()):
 			savedata = []
 			savedata.append(spectrum_vertical)
 			savedata.append(graphdata)
-		saveMsg = snapshot(savedata)
+		saveMsg = snapshot(savedata,waterfall=args.waterfall)
 	elif keyPress == ord("c"):
 		calcomplete = writecal(clickArray)
 		if calcomplete:
