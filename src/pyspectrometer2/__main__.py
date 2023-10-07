@@ -45,8 +45,11 @@ args = cli.args()
 
 def main():
     capture = video.Capture.initialize(args.device,args.width,args.height,args.fps)
-    calibration = record.Calibration(capture.width)
     print(capture)
+    if capture.width != args.width:
+        raise RuntimeError(f"Unable to open device /dev/video{args.device} with width={args.width}.")
+
+    calibration = record.Calibration(capture.width)
     s = Spectrometer(calibration)
 
     if args.fullscreen:
