@@ -46,14 +46,6 @@ class Calibration():
 
     def map_px_wavelength(self):
         #create an array for the data...
-
-        pixels = self.pixels
-        wavelengths = self.wavelengths
-        if not self.pixels:
-            #blind guess placeholders
-            pixels = [0,400,800]
-            wavelengths = [380,560,750]
-            warn("Using placeholder calibration data")
         
         if (len(self.pixels) == 3):
             print("Calculating second order polynomial...")
@@ -118,9 +110,15 @@ class Calibration():
         #Les Wright 28 Sept 2022
 
         print("Loading calibration data...")
-        with open(filename, 'r') as file:
-            self.pixels = [int(i) for i in next(file).split(',')]
-            self.wavelengths = [float(f) for f in next(file).split(',')]
+        try:
+            with open(filename, 'r') as file:
+                self.pixels = [int(i) for i in next(file).split(',')]
+                self.wavelengths = [float(f) for f in next(file).split(',')]
+        except FileNotFoundError:
+            warn(f"Missing {filename}. Using placeholder data.")
+            self.pixels = [0,400,800]
+            self.wavelengths = [380,560,750]
+            return
 
         if len(self.pixels) != len(self.wavelengths):
             raise CalibrationError(f"Invalid calbration {len(self.pixels)=} != {len(self.wavelengths)=}")
@@ -128,30 +126,29 @@ class Calibration():
             raise CalibrationError(f"Invalid calbration {len(self.pixels)=} < 3")
 
 
-def writecal(clickArray):
-    calcomplete = False
-    pxdata = []
-    wldata = []
-    print("Enter known wavelengths for observed pixels!")
-    for i in clickArray:
-        pixel = i[0]
-        wavelength = input("Enter wavelength for: "+str(pixel)+"px:")
-        pxdata.append(pixel)
-        wldata.append(wavelength)
-    #This try except serves two purposes
-    #first I want to write data to the caldata.txt file without quotes
-    #second it validates the data in as far as no strings were entered 
-    try:
-        wldata = [float(x) for x in wldata]
-    except:
-        print("Only ints or decimals are allowed!")
-        print("Calibration aborted!")
+    def writecal(self,clickArray,filename="caldata.txt"):
+        calcomplete = False
+        pxdata = []
+        wldata = []
+        print("Enter known wavelengths for observed pixels!")
+        for i in clickArray:
+            pixel = i[0]
+            while True:
+                wavelength = input("Enter wavelength for: "+str(pixel)+"px:")
+                try:
+                   wavelength = float(wavelength)
+                except ValueError:
+                   print("Only ints or decimals are allowed!")
+                   continue
+                break
+            wldata.append(wavelength)
+            pxdata.append(pixel)
 
-    pxdata = ','.join(map(str, pxdata)) #convert array to string
-    wldata = ','.join(map(str, wldata)) #convert array to string
-    f = open('caldata.txt','w')
-    f.write(pxdata+'\r\n')
-    f.write(wldata+'\r\n')
-    print("Calibration Data Written!")
-    calcomplete = True
-    return calcomplete
+        pxdata = ','.join(map(str, pxdata)) #convert array to string
+        wldata = ','.join(map(str, wldata)) #convert array to string
+        with open(filename,'w') as f:
+            print(pxdata, file=f)
+            print(wldata, file=f)
+        print("Calibration Data Written!")
+        calcomplete = True
+        return calcomplete

@@ -36,7 +36,7 @@ class SpectrometerInteractivity:
             if calcomplete:
                 #overwrite wavelength data
                 #Go grab the computed calibration data
-                self.calibration = Calibration()
+                self.calibration = Calibration(self.capture.width)
                 #overwrite graticule data
                 graticuleData = generateGraticule(self.calibration.wavelengthData)
                 tens = (graticuleData[0])
