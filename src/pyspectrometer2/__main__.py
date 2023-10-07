@@ -38,8 +38,8 @@ from . import Spectrometer
 from . import cli
 from . import ui
 from . import video
-from .record import snapshot
-from .specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes,readcal,writecal,generateGraticule
+from .record import readcal, snapshot, writecal
+from .specFunctions import wavelength_to_rgb,savitzky_golay,peakIndexes,generateGraticule
 
 args = cli.args()
 spectrometer = Spectrometer()

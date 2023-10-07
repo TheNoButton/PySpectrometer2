@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+
+from .record import readcal, writecal
 from . import record
-from .specFunctions import writecal,readcal,generateGraticule
+from .specFunctions import generateGraticule
 
 @dataclass
 class SpectrometerInteractivity:
